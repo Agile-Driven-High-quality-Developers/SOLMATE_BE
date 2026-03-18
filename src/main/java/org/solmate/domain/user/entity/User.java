@@ -27,7 +27,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(nullable = false, unique = true)
@@ -37,9 +37,8 @@ public class User extends BaseEntity {
     private String imageUrl;
 
     @Builder
-    public User(String email, String password, String nickname, String imageUrl) {
+    public User(String email, String nickname, String imageUrl) {
         this.email = email;
-        this.password = password;
         this.nickname = nickname;
         this.imageUrl = imageUrl;
     }

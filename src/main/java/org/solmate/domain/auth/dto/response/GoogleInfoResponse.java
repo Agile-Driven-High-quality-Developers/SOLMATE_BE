@@ -6,6 +6,6 @@ public record GoogleInfoResponse(
         String id,
         String email,
         String name,
-        String imageUrl
+        @JsonProperty("picture") String imageUrl
 ) {
 }

@@ -1,17 +1,21 @@
 package org.solmate.domain.auth.controller;
 
+import java.util.Map;
+
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.auth.dto.request.LoginRequest;
 import org.solmate.domain.auth.dto.request.SignUpRequest;
 import org.solmate.domain.auth.dto.response.LoginResponse;
 import org.solmate.domain.auth.service.AuthService;
+import org.solmate.domain.auth.service.GoogleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleService googleService;
 
     @Operation(summary = "회원가입")
     @PostMapping("/signup")
@@ -66,5 +71,23 @@ public class AuthController {
         String accessToken = (bearer != null && bearer.startsWith("Bearer ")) ? bearer.substring(7) : null;
         authService.logout(accessToken, refreshToken, response);
         return ApiResponse.success(SuccessStatus.LOGOUT_SUCCESS);
+    }
+
+
+    @GetMapping("/google/authorize-uri")
+    @Operation(summary = "구글 로그인 URL 조회")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getGoogleAuthorizeUri() {
+        String authorizeUri = googleService.getGoogleAuthorizeUri();
+        return ApiResponse.success(SuccessStatus.LOGIN_SUCCESS, Map.of("authorizeUri", authorizeUri));
+    }
+
+    @GetMapping("/google/callback")
+    @Operation(summary = "구글 로그인 콜백")
+    public ResponseEntity<ApiResponse<LoginResponse>> googleLogin(
+            @RequestParam String code,
+            HttpServletResponse response
+    ) {
+        LoginResponse loginResponse = googleService.loginWithGoogle(code, response);
+        return ApiResponse.success(SuccessStatus.LOGIN_SUCCESS, loginResponse);
     }
 }

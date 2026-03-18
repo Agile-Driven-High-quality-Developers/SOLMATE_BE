@@ -25,7 +25,8 @@ public enum SuccessStatus implements BaseStatus {
     LOGOUT_SUCCESS("AUTH_200", HttpStatus.OK, "로그아웃 성공"),
     REISSUE_SUCCESS("AUTH_200", HttpStatus.OK, "토큰 재발급 성공"),
     EMAIL_SEND_SUCCESS("AUTH_200", HttpStatus.OK, "인증 메일 발송 성공"),
-    EMAIL_VERIFY_SUCCESS("AUTH_200", HttpStatus.OK, "이메일 인증 성공");
+    EMAIL_VERIFY_SUCCESS("AUTH_200", HttpStatus.OK, "이메일 인증 성공"),
+    NICKNAME_CHECK_SUCCESS("AUTH_200", HttpStatus.OK, "사용 가능한 닉네임입니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

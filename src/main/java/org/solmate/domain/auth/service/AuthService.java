@@ -7,6 +7,7 @@ import org.solmate.common.jwt.JwtProvider;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.auth.dto.request.LoginRequest;
 import org.solmate.domain.auth.dto.request.SignUpRequest;
+import org.solmate.domain.auth.service.EmailVerificationService;
 import org.solmate.domain.auth.dto.response.LoginResponse;
 import org.solmate.domain.auth.entity.LoginType;
 import org.solmate.domain.auth.enums.OAuthProvider;
@@ -36,6 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+    private final EmailVerificationService emailVerificationService;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshExpiration;
@@ -45,7 +47,9 @@ public class AuthService {
 
     // 회원가입
     public void signUp(SignUpRequest request) {
+        emailVerificationService.isEmailVerified(request.email());
         userService.checkEmailNotDuplicated(request.email());
+        userService.checkNicknameNotDuplicated(request.nickname());
 
         User user = User.builder()
                 .email(request.email())

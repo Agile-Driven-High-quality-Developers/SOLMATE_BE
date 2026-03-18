@@ -32,6 +32,12 @@ public class UserService {
         }
     }
 
+    public void checkNicknameNotDuplicated(String nickname) {
+        if (userRepository.existsByNickname(nickname)) {
+            throw new GeneralException(ErrorStatus.NICKNAME_ALREADY_EXISTS);
+        }
+    }
+
     @Transactional
     public void updatePassword(User user, String encodedPassword) {
         user.updatePassword(encodedPassword);

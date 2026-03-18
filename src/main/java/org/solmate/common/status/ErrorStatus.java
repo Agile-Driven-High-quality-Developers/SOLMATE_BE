@@ -26,13 +26,19 @@ public enum ErrorStatus implements BaseStatus {
     INVALID_PASSWORD_FORMAT("AUTH_400", HttpStatus.BAD_REQUEST, "비밀번호 양식이 올바르지 않습니다."),
     INVALID_PASSWORD("AUTH_401", HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다."),
     INVALID_TOKEN("AUTH_401", HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
+    VERIFICATION_CODE_EXPIRED("AUTH_400", HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다."),
+    INVALID_VERIFICATION_CODE("AUTH_400", HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
+    EMAIL_VERIFICATION_NOT_FOUND("AUTH_404", HttpStatus.NOT_FOUND, "이메일 인증 요청을 먼저 진행해주세요."),
 
     /**
      * User
      */
     USER_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
     EMAIL_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
-    EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다.");
+    EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
+    NICKNAME_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
+    EMAIL_NOT_VERIFIED("USER_400", HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다."),
+    EMAIL_SEND_FAILED("USER_500", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 전송에 실패했습니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

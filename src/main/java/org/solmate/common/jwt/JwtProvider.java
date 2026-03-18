@@ -29,7 +29,7 @@ public class JwtProvider {
 		this.refreshExpiration = refreshExpiration;
 	}
 
-	// access token 생성 (JWT)
+	// access token
 	public String generateAccessToken(Long userId) {
 		Date now = new Date();
 		return Jwts.builder()
@@ -50,8 +50,6 @@ public class JwtProvider {
 			.compact();
 	}
 
-
-	// token 유효성 검증
 	public boolean validateToken(String token) {
 		try {
 			Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
@@ -61,7 +59,6 @@ public class JwtProvider {
 		}
 	}
 
-	// token에서 userId 추출
 	public Long getUserId(String token) {
 		return Long.parseLong(
 			Jwts.parser().verifyWith(key).build()
@@ -71,7 +68,6 @@ public class JwtProvider {
 		);
 	}
 
-	// token 남은 만료시간 (ms)
 	public long getRemainingExpiration(String token) {
 		Date expiration = Jwts.parser().verifyWith(key).build()
 				.parseSignedClaims(token)

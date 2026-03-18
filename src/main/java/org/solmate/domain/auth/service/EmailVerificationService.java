@@ -79,7 +79,7 @@ public class EmailVerificationService {
     // 이메일 정보 조회
     private EmailVerification findEmailVerificationByEmail(String email) {
         return emailVerificationRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.EMAIL_NOT_FOUND));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.EMAIL_VERIFICATION_NOT_FOUND));
     }
 
     // 인증 코드 만료 여부

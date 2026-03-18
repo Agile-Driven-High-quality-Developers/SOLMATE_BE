@@ -13,6 +13,7 @@ import org.solmate.domain.auth.service.AuthService;
 import org.solmate.domain.auth.service.EmailVerificationService;
 import org.solmate.domain.auth.service.GoogleService;
 import org.springframework.http.ResponseEntity;
+import org.solmate.domain.user.service.UserService;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,14 @@ public class AuthController {
     private final AuthService authService;
     private final GoogleService googleService;
     private final EmailVerificationService emailVerificationService;
+    private final UserService userService;
+
+    @Operation(summary = "닉네임 중복 확인")
+    @GetMapping("/nickname/check")
+    public ResponseEntity<ApiResponse<Void>> checkNickname(@RequestParam String nickname) {
+        userService.checkNicknameNotDuplicated(nickname);
+        return ApiResponse.success(SuccessStatus.NICKNAME_CHECK_SUCCESS);
+    }
 
     @Operation(summary = "인증 메일 발송")
     @PostMapping("/email/send")

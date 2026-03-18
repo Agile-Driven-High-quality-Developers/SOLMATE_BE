@@ -4,10 +4,13 @@ import java.util.Map;
 
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.auth.dto.request.ConfirmEmailVerificationRequest;
+import org.solmate.domain.auth.dto.request.EmailVerificationRequest;
 import org.solmate.domain.auth.dto.request.LoginRequest;
 import org.solmate.domain.auth.dto.request.SignUpRequest;
 import org.solmate.domain.auth.dto.response.LoginResponse;
 import org.solmate.domain.auth.service.AuthService;
+import org.solmate.domain.auth.service.EmailVerificationService;
 import org.solmate.domain.auth.service.GoogleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -33,6 +36,25 @@ public class AuthController {
 
     private final AuthService authService;
     private final GoogleService googleService;
+    private final EmailVerificationService emailVerificationService;
+
+    @Operation(summary = "인증 메일 발송")
+    @PostMapping("/email/send")
+    public ResponseEntity<ApiResponse<Void>> sendEmailVerification(
+            @RequestBody @Valid EmailVerificationRequest request
+    ) {
+        emailVerificationService.requestEmailVerificationCode(request.email());
+        return ApiResponse.success(SuccessStatus.EMAIL_SEND_SUCCESS);
+    }
+
+    @Operation(summary = "이메일 인증 코드 확인")
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @RequestBody @Valid ConfirmEmailVerificationRequest request
+    ) {
+        emailVerificationService.confirmEmailVerificationCode(request.email(), request.emailVerificationCode());
+        return ApiResponse.success(SuccessStatus.EMAIL_VERIFY_SUCCESS);
+    }
 
     @Operation(summary = "회원가입")
     @PostMapping("/signup")

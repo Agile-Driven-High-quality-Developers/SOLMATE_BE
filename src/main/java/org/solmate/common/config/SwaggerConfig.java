@@ -15,17 +15,24 @@ public class SwaggerConfig {
 
 	@Bean
 	public OpenAPI openAPI() {
+		SecurityScheme bearerScheme = new SecurityScheme()
+				.type(SecurityScheme.Type.HTTP)
+				.scheme("bearer")
+				.bearerFormat("JWT")
+				.name("Authorization");
+
 		return new OpenAPI()
-			// Swagger Authorize 버튼 누르면 모든 요청에 Bearer 헤더 자동 포함
-			.info(new Info()
-				.title("Solmate Backend API")
-				.description("프로디지털아카데미 Solmate 프로젝트의 백엔드 API 문서입니다.")
-				.version("1.0.0")
-				.contact(new Contact()
-					.name("Solmate Dev Team")
-					.email("team.solmate@example.com"))
-				.license(new License()
-					.name("Apache License 2.0")
-					.url("https://www.apache.org/licenses/LICENSE-2.0.html")));
+				.addSecurityItem(new SecurityRequirement().addList("BearerAuth"))
+				.components(new Components().addSecuritySchemes("BearerAuth", bearerScheme))
+				.info(new Info()
+						.title("Solmate Backend API")
+						.description("프로디지털아카데미 Solmate 프로젝트의 백엔드 API 문서입니다.")
+						.version("1.0.0")
+						.contact(new Contact()
+								.name("Solmate Dev Team")
+								.email("team.solmate@example.com"))
+						.license(new License()
+								.name("Apache License 2.0")
+								.url("https://www.apache.org/licenses/LICENSE-2.0.html")));
 	}
 }

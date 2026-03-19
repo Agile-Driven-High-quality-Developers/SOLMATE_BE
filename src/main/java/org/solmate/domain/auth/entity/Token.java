@@ -29,7 +29,7 @@ public class Token {
     @JoinColumn(name = "login_type_id", nullable = false)
     private LoginType loginType;
 
-    @Column(name = "provider_token")
+    @Column(name = "provider_token", columnDefinition = "TEXT")
     private String providerToken;
 
     @Builder

@@ -4,9 +4,12 @@ import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.StockService;
+import org.solmate.external.ls.websocket.LsWebSocketClient;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,11 +24,26 @@ import lombok.RequiredArgsConstructor;
 public class StockController {
 
     private final StockService stockService;
+    private final LsWebSocketClient lsWebSocketClient;
 
     @Operation(summary = "주식 현재가 조회")
     @GetMapping("/{stockCode}/quote")
     public ResponseEntity<ApiResponse<StockQuoteResponse>> getQuote(@PathVariable String stockCode) {
         StockQuoteResponse response = stockService.getQuote(stockCode);
         return ApiResponse.success(SuccessStatus.SUCCESS_200, response);
+    }
+
+    @Operation(summary = "주식 실시간 시세 구독")
+    @PostMapping("/{stockCode}/subscribe")
+    public ResponseEntity<ApiResponse<Void>> subscribe(@PathVariable String stockCode) {
+        lsWebSocketClient.subscribe(stockCode);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200);
+    }
+
+    @Operation(summary = "주식 실시간 시세 구독 해제")
+    @DeleteMapping("/{stockCode}/subscribe")
+    public ResponseEntity<ApiResponse<Void>> unsubscribe(@PathVariable String stockCode) {
+        lsWebSocketClient.unsubscribe(stockCode);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200);
     }
 }

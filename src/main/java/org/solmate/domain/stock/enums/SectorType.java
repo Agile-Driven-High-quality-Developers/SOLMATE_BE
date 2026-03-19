@@ -10,6 +10,7 @@ public enum SectorType {
 	INDUSTRIALS,            // 산업재
 	HEAVY_INDUSTRIES,       // 중공업
 	CONSTRUCTION,           // 건설
-	HEALTHCARE              // 헬스케어
+	HEALTHCARE,             // 헬스케어
+	COMMUNICATION_SERVICES  // 커뮤니케이션서비스
 
 }

@@ -37,7 +37,7 @@ public class Stock {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(nullable = false, length = 30)
     private SectorType sectorType;
 
 

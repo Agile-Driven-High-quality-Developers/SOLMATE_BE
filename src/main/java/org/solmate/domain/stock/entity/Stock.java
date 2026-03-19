@@ -1,6 +1,6 @@
 package org.solmate.domain.stock.entity;
 
-import org.solmate.domain.stock.enums.SectorType;
+import org.solmate.domain.stock.enums.MarketType;
 import org.solmate.domain.stock.enums.StockStatus;
 
 import jakarta.persistence.Column;
@@ -29,24 +29,26 @@ public class Stock {
     @Column(name = "ticker_code", nullable = false, length = 20)
     private String tickerCode;
 
-    @Column(nullable = false, length = 20)
-    private String stockName;
+    @Column(nullable = false, length = 10)
+    private String symbol;
 
     @Column(nullable = false, length = 1024)
-    private String stockLogo;
-
+    private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    private SectorType sectorType;
+    @Column(name = "market_type", nullable = false)
+    private MarketType marketType;
 
-
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StockStatus status;
 
     @Builder
-    public Stock(String tickerCode, String stockName, String stockLogo, SectorType sectorType) {
+    public Stock(String tickerCode, String symbol, String description, MarketType marketType, StockStatus status) {
         this.tickerCode = tickerCode;
-        this.stockName = stockName;
-        this.stockLogo = stockLogo;
-        this.sectorType = sectorType;
+        this.symbol = symbol;
+        this.description = description;
+        this.marketType = marketType;
+        this.status = status;
     }
 }

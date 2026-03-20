@@ -82,6 +82,16 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         }
     }
 
+    public void reconnect() {
+        try {
+            if (session != null && session.isOpen()) {
+                session.close();
+            }
+        } catch (Exception e) {
+            log.error("LS WebSocket 세션 종료 실패", e);
+        }
+    }
+
     private void scheduleReconnect() {
         log.info("LS WebSocket 5초 후 재연결 시도");
         reconnectScheduler.schedule(this::connect, 5, TimeUnit.SECONDS);

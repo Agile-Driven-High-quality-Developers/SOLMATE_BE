@@ -19,4 +19,32 @@ public record LsWsRequest(Header header, Body body) {
                 new Body("US3", String.format("U%-9s", stockCode))
         );
     }
+
+    public static LsWsRequest subscribeIndex(String token, String indexCode) {
+        return new LsWsRequest(
+                new Header(token, "3"),
+                new Body("IJ_", indexCode)
+        );
+    }
+
+    public static LsWsRequest unsubscribeIndex(String token, String indexCode) {
+        return new LsWsRequest(
+                new Header(token, "4"),
+                new Body("IJ_", indexCode)
+        );
+    }
+
+    public static LsWsRequest subscribeCurrency(String token, String currencyCode) {
+        return new LsWsRequest(
+                new Header(token, "3"),
+                new Body("CUR", String.format("%-6s", currencyCode))
+        );
+    }
+
+    public static LsWsRequest unsubscribeCurrency(String token, String currencyCode) {
+        return new LsWsRequest(
+                new Header(token, "4"),
+                new Body("CUR", String.format("%-6s", currencyCode))
+        );
+    }
 }

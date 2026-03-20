@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 
 import org.solmate.common.base.BaseEntity;
 import org.solmate.domain.stock.entity.Stock;
-import org.solmate.domain.trade.enums.OrderType;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
 import org.solmate.domain.user.entity.User;
@@ -24,6 +23,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "trade_history")
 @Getter
@@ -56,20 +56,15 @@ public class TradeHistory extends BaseEntity {
     @Column(name = "trade_status", nullable = false)
     private TradeStatus tradeStatus;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "order_type", nullable = false)
-    private OrderType orderType;
-
     @Builder
     public TradeHistory(User user, Stock stock, BigDecimal price, BigDecimal quantity,
-                        TradeType tradeType, TradeStatus tradeStatus, OrderType orderType) {
+                        TradeType tradeType, TradeStatus tradeStatus) {
         this.user = user;
         this.stock = stock;
         this.price = price;
         this.quantity = quantity;
         this.tradeType = tradeType;
         this.tradeStatus = tradeStatus;
-        this.orderType = orderType;
     }
 
     public void updateStatus(TradeStatus tradeStatus) {

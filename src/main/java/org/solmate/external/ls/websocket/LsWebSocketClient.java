@@ -31,6 +31,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
+import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
+import org.solmate.domain.market.service.MarketIndicatorService;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -52,6 +56,9 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     }
 
     // 앱 시작 시 LS WebSocket 서버에 자동 연결
+
+    private final MarketIndicatorService marketIndicatorService;
+
     @PostConstruct
     public void connect() {
         try {
@@ -64,6 +71,11 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                     this.session = sess;
                     log.info("LS WebSocket 연결 성공");
                     resubscribeAll();
+
+                    String token = lsTokenService.getToken();
+                    sendMessage(LsWsRequest.subscribeIndex(token, "001")); // KOSPI
+                    sendMessage(LsWsRequest.subscribeIndex(token, "301")); // KOSDAQ
+                    sendMessage(LsWsRequest.subscribeCurrency(token, "USD")); // 환율
                 }
             });
         } catch (Exception e) {
@@ -122,6 +134,29 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             log.info("LS WebSocket 수신: {}", message.getPayload());
+
+            // tr_cd 먼저 확인
+            var root = objectMapper.readTree(message.getPayload());
+            var header = root.get("header");
+            if (header == null || root.get("body") == null || root.get("body").isNull()) return;
+
+            String trCd = header.get("tr_cd") != null ? header.get("tr_cd").asText() : "";
+
+            // 지수 데이터 처리
+            if ("IJ_".equals(trCd)) {
+                LsWsIndexResponse response = objectMapper.readValue(message.getPayload(), LsWsIndexResponse.class);
+                marketIndicatorService.saveIndex(response);
+                return;
+            }
+
+            // 환율 추가
+            if ("CUR".equals(trCd)) {
+                LsWsCurrencyResponse response = objectMapper.readValue(message.getPayload(), LsWsCurrencyResponse.class);
+                marketIndicatorService.saveCurrency(response);
+                return;
+            }
+
+            // 종목 데이터 처리 (기존 코드)
             LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
             if (response.header() == null || response.body() == null) return;
 

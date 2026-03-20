@@ -7,6 +7,9 @@ import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.stock.dto.response.CandleResponse;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.CandleService;
+import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
+import org.solmate.domain.stock.dto.response.StockQuoteResponse;
+import org.solmate.domain.stock.service.OrderBookService;
 import org.solmate.domain.stock.service.StockService;
 import org.solmate.external.ls.websocket.LsWebSocketClient;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +33,7 @@ public class StockController {
 
     private final StockService stockService;
     private final CandleService candleService;
+    private final OrderBookService orderBookService;
     private final LsWebSocketClient lsWebSocketClient;
 
     @Operation(summary = "주식 현재가 조회")
@@ -65,5 +69,12 @@ public class StockController {
     public ResponseEntity<ApiResponse<Void>> unsubscribe(@PathVariable String stockCode) {
         lsWebSocketClient.unsubscribe(stockCode);
         return ApiResponse.success(SuccessStatus.SUCCESS_200);
+    }
+
+    @Operation(summary = "실시간 호가 조회 (매도 5단계 / 매수 5단계)")
+    @GetMapping("/{stockCode}/orderbook")
+    public ResponseEntity<ApiResponse<StockOrderBookResponse>> getOrderBook(@PathVariable String stockCode) {
+        StockOrderBookResponse response = orderBookService.getOrderBook(stockCode);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, response);
     }
 }

@@ -60,4 +60,17 @@ public class Holdings extends BaseEntity {
         this.avgPrice = avgPrice;
         this.returnRate = returnRate;
     }
+
+    public void updateQuantityAndAvgPrice(BigDecimal quantity, BigDecimal avgPrice) {
+        this.quantity = quantity;
+        this.avgPrice = avgPrice;
+    }
+
+    public void updateReturnRate(BigDecimal returnRate) {
+        this.returnRate = returnRate;
+    }
+
+    public void subtractQuantity(BigDecimal quantity) {
+        this.quantity = this.quantity.subtract(quantity);
+    }
 }

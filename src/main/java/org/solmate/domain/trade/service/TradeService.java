@@ -14,10 +14,13 @@ import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.domain.trade.dto.request.BuyOrderRequest;
 import org.solmate.domain.trade.dto.request.SellOrderRequest;
 import org.solmate.domain.trade.entity.Holdings;
+import org.solmate.domain.trade.entity.TradeDiary;
 import org.solmate.domain.trade.entity.TradeHistory;
+import org.solmate.domain.trade.enums.OrderType;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
 import org.solmate.domain.trade.repository.HoldingsRepository;
+import org.solmate.domain.trade.repository.TradeDiaryRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
@@ -39,8 +42,10 @@ public class TradeService {
     private final StockRepository stockRepository;
     private final HoldingsRepository holdingsRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
+    private final TradeDiaryRepository tradeDiaryRepository;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Transactional
     public Long buyOrder(Long userId, BuyOrderRequest request) {
@@ -73,8 +78,17 @@ public class TradeService {
             .quantity(request.quantity())
             .tradeType(TradeType.BUY)
             .tradeStatus(TradeStatus.PENDING)
+            .orderType(request.orderType())
             .build();
         tradeHistoryRepository.saveAndFlush(tradeHistory);
+
+        // TradeDiary 저장
+        TradeDiary tradeDiary = TradeDiary.builder()
+            .user(user)
+            .tradeHistory(tradeHistory)
+            .content(request.diary())
+            .build();
+        tradeDiaryRepository.save(tradeDiary);
 
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:buy:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
@@ -112,8 +126,17 @@ public class TradeService {
             .quantity(request.quantity())
             .tradeType(TradeType.SELL)
             .tradeStatus(TradeStatus.PENDING)
+            .orderType(request.orderType())
             .build();
         tradeHistoryRepository.saveAndFlush(tradeHistory);
+
+        // TradeDiary 저장
+        TradeDiary tradeDiary = TradeDiary.builder()
+            .user(user)
+            .tradeHistory(tradeHistory)
+            .content(request.diary())
+            .build();
+        tradeDiaryRepository.save(tradeDiary);
 
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
@@ -122,8 +145,8 @@ public class TradeService {
     }
 
     // 시장가: Redis 현재가 조회 / 지정가: 요청 price 사용
-    private BigDecimal resolvePrice(String orderType, String ticker, BigDecimal requestPrice) {
-        if ("MARKET".equals(orderType)) {
+    private BigDecimal resolvePrice(OrderType orderType, String ticker, BigDecimal requestPrice) {
+        if (OrderType.MARKET.equals(orderType)) {
             String curStr = (String) redisTemplate.opsForHash().get("stock:info:" + ticker, "cur");
             if (curStr == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
             return new BigDecimal(curStr);

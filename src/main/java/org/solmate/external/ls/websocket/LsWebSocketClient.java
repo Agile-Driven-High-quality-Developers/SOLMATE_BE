@@ -7,9 +7,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.solmate.domain.market.service.MarketIndicatorService;
+import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
+import org.solmate.domain.stock.service.OrderBookService;
+import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.external.ls.LsProperties;
+import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
+import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
+import org.solmate.external.ls.dto.websocket.LsWsOrderBookResponse;
 import org.solmate.external.ls.dto.websocket.LsWsRequest;
 import org.solmate.external.ls.dto.websocket.LsWsStockResponse;
 import org.solmate.external.ls.service.LsTokenService;
@@ -21,15 +28,12 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
-import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
-import org.solmate.domain.market.service.MarketIndicatorService;
 
 @Slf4j
 @Component
@@ -40,7 +44,10 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final LsTokenService lsTokenService;
     private final SimpMessagingTemplate messagingTemplate;
     private final CandleAccumulatorService candleAccumulatorService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final StockInfoService stockInfoService;
+    private final OrderBookService orderBookService;
+    private final MarketIndicatorService marketIndicatorService;
+    private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
 
     private WebSocketSession session;
@@ -49,9 +56,6 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     public Set<String> getSubscribedCodes() {
         return subscribedCodes;
     }
-
-
-    private final MarketIndicatorService marketIndicatorService;
 
     @PostConstruct
     public void connect() {
@@ -87,19 +91,26 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         if (subscribedCodes.isEmpty()) return;
         log.info("LS WebSocket 재구독 시도: {}", subscribedCodes);
         String token = lsTokenService.getToken();
-        subscribedCodes.forEach(code -> sendMessage(LsWsRequest.subscribe(token, code)));
+        subscribedCodes.forEach(code -> {
+            sendMessage(LsWsRequest.subscribe(token, code));
+            sendMessage(LsWsRequest.subscribeOrderBook(token, code));
+        });
     }
 
     public void subscribe(String stockCode) {
         if (subscribedCodes.contains(stockCode)) return;
-        sendMessage(LsWsRequest.subscribe(lsTokenService.getToken(), stockCode));
+        String token = lsTokenService.getToken();
+        sendMessage(LsWsRequest.subscribe(token, stockCode));
+        sendMessage(LsWsRequest.subscribeOrderBook(token, stockCode));
         subscribedCodes.add(stockCode);
         log.info("LS WebSocket 구독: {}", stockCode);
     }
 
     public void unsubscribe(String stockCode) {
         if (!subscribedCodes.contains(stockCode)) return;
-        sendMessage(LsWsRequest.unsubscribe(lsTokenService.getToken(), stockCode));
+        String token = lsTokenService.getToken();
+        sendMessage(LsWsRequest.unsubscribe(token, stockCode));
+        sendMessage(LsWsRequest.unsubscribeOrderBook(token, stockCode));
         subscribedCodes.remove(stockCode);
         log.info("LS WebSocket 구독 해제: {}", stockCode);
     }
@@ -121,43 +132,45 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
-            log.info("LS WebSocket 수신: {}", message.getPayload());
+            String payload = message.getPayload();
+            log.info("LS WebSocket 수신: {}", payload);
 
-            // tr_cd 먼저 확인
-            var root = objectMapper.readTree(message.getPayload());
-            var header = root.get("header");
-            if (header == null || root.get("body") == null || root.get("body").isNull()) return;
+            JsonNode node = objectMapper.readTree(payload);
+            JsonNode headerNode = node.get("header");
+            if (headerNode == null || node.get("body") == null || node.get("body").isNull()) return;
 
-            String trCd = header.get("tr_cd") != null ? header.get("tr_cd").asText() : "";
+            String trCd = headerNode.path("tr_cd").asText();
 
-            // 지수 데이터 처리
             if ("IJ_".equals(trCd)) {
-                LsWsIndexResponse response = objectMapper.readValue(message.getPayload(), LsWsIndexResponse.class);
+                LsWsIndexResponse response = objectMapper.treeToValue(node, LsWsIndexResponse.class);
                 marketIndicatorService.saveIndex(response);
-                return;
-            }
 
-            // 환율 추가
-            if ("CUR".equals(trCd)) {
-                LsWsCurrencyResponse response = objectMapper.readValue(message.getPayload(), LsWsCurrencyResponse.class);
+            } else if ("CUR".equals(trCd)) {
+                LsWsCurrencyResponse response = objectMapper.treeToValue(node, LsWsCurrencyResponse.class);
                 marketIndicatorService.saveCurrency(response);
-                return;
+
+            } else if ("US3".equals(trCd)) {
+                LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
+                if (response.body() == null) return;
+                candleAccumulatorService.accumulate(response.body());
+                stockInfoService.update(response.body());
+                messagingTemplate.convertAndSend("/topic/stocks/" + response.body().shcode(),
+                        StockRealtimeResponse.from(response.body()));
+
+            } else if ("UH1".equals(trCd)) {
+                LsWsOrderBookResponse response = objectMapper.treeToValue(node, LsWsOrderBookResponse.class);
+                if (response.body() == null) return;
+                String stockCode = response.body().shcode();
+                orderBookService.save(response.body());
+                StockOrderBookResponse orderBook = orderBookService.getOrderBook(stockCode);
+                if (orderBook != null) {
+                    messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, orderBook);
+                }
             }
-
-            // 종목 데이터 처리 (기존 코드)
-            LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
-            if (response.header() == null || response.body() == null) return;
-
-            String stockCode = response.body().shcode();
-            candleAccumulatorService.accumulate(response.body());
-            messagingTemplate.convertAndSend("/topic/stocks/" + stockCode, StockRealtimeResponse.from(response.body()));
-
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
         }
     }
-
-
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {

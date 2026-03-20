@@ -7,12 +7,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.solmate.domain.market.service.MarketIndicatorService;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
 import org.solmate.domain.stock.service.OrderBookService;
 import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.external.ls.LsProperties;
+import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
+import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
 import org.solmate.external.ls.dto.websocket.LsWsOrderBookResponse;
 import org.solmate.external.ls.dto.websocket.LsWsRequest;
 import org.solmate.external.ls.dto.websocket.LsWsStockResponse;
@@ -43,6 +46,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final CandleAccumulatorService candleAccumulatorService;
     private final StockInfoService stockInfoService;
     private final OrderBookService orderBookService;
+    private final MarketIndicatorService marketIndicatorService;
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -65,6 +69,11 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                     this.session = sess;
                     log.info("LS WebSocket 연결 성공");
                     resubscribeAll();
+
+                    String token = lsTokenService.getToken();
+                    sendMessage(LsWsRequest.subscribeIndex(token, "001")); // KOSPI
+                    sendMessage(LsWsRequest.subscribeIndex(token, "301")); // KOSDAQ
+                    sendMessage(LsWsRequest.subscribeCurrency(token, "USD")); // 환율
                 }
             });
         } catch (Exception e) {
@@ -126,14 +135,21 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             String payload = message.getPayload();
             log.info("LS WebSocket 수신: {}", payload);
 
-            // tr_cd로 라우팅
             JsonNode node = objectMapper.readTree(payload);
             JsonNode headerNode = node.get("header");
-            if (headerNode == null) return;
+            if (headerNode == null || node.get("body") == null || node.get("body").isNull()) return;
 
             String trCd = headerNode.path("tr_cd").asText();
 
-            if ("US3".equals(trCd)) {
+            if ("IJ_".equals(trCd)) {
+                LsWsIndexResponse response = objectMapper.treeToValue(node, LsWsIndexResponse.class);
+                marketIndicatorService.saveIndex(response);
+
+            } else if ("CUR".equals(trCd)) {
+                LsWsCurrencyResponse response = objectMapper.treeToValue(node, LsWsCurrencyResponse.class);
+                marketIndicatorService.saveCurrency(response);
+
+            } else if ("US3".equals(trCd)) {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
                 if (response.body() == null) return;
                 candleAccumulatorService.accumulate(response.body());

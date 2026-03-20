@@ -62,6 +62,10 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         return subscribedCodes;
     }
 
+    public void addSubscribedCode(String stockCode) {
+        subscribedCodes.add(stockCode);
+    }
+
     // 앱 시작 시 LS WebSocket 서버에 자동 연결
     @PostConstruct
     public void connect() {
@@ -173,10 +177,16 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             } else if ("US3".equals(trCd)) {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
                 if (response.body() == null) return;
+                String stockCode = response.body().shcode();
                 candleAccumulatorService.accumulate(response.body());
                 stockInfoService.update(response.body());
-                messagingTemplate.convertAndSend("/topic/stocks/" + response.body().shcode(),
+                messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
                         StockRealtimeResponse.from(response.body()));
+                broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
+                broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
+                broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
+                broadcastCandle(stockCode, "candle:60min:", "/topic/stocks/" + stockCode + "/candle/60min");
+                broadcastCandle(stockCode, "candle:1day:",  "/topic/stocks/" + stockCode + "/candle/1day");
 
             } else if ("UH1".equals(trCd)) {
                 LsWsOrderBookResponse response = objectMapper.treeToValue(node, LsWsOrderBookResponse.class);
@@ -188,28 +198,6 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                     messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, orderBook);
                 }
             }
-
-            // 종목 데이터 처리 (기존 코드)
-            LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
-            if (response.header() == null || response.body() == null) return;
-
-            String stockCode = response.body().shcode();
-
-            // 모든 봉 Redis 누적
-            candleAccumulatorService.accumulate(response.body());
-
-            // 현재가/등락 정보 브로드캐스트 (종목 상단 현재가 표시용)
-            messagingTemplate.convertAndSend(
-                    "/topic/stocks/" + stockCode + "/quote",
-                    StockRealtimeResponse.from(response.body())
-            );
-
-            // 봉별 토픽으로 현재 진행 중인 캔들 브로드캐스트
-            broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
-            broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
-            broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
-            broadcastCandle(stockCode, "candle:60min:", "/topic/stocks/" + stockCode + "/candle/60min");
-            broadcastCandle(stockCode, "candle:1day:",  "/topic/stocks/" + stockCode + "/candle/1day");
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
         }

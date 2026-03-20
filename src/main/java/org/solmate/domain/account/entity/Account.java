@@ -41,4 +41,12 @@ public class Account extends BaseEntity {
         this.user = user;
         this.cash = cash;
     }
+
+    public void addCash(BigDecimal amount) {
+        this.cash = this.cash.add(amount);
+    }
+
+    public void subtractCash(BigDecimal amount) {
+        this.cash = this.cash.subtract(amount);
+    }
 }

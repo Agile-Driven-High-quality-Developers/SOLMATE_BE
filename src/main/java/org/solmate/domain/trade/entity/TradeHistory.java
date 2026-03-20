@@ -66,4 +66,8 @@ public class TradeHistory extends BaseEntity {
         this.tradeType = tradeType;
         this.tradeStatus = tradeStatus;
     }
+
+    public void updateStatus(TradeStatus tradeStatus) {
+        this.tradeStatus = tradeStatus;
+    }
 }

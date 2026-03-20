@@ -1,0 +1,149 @@
+package org.solmate.domain.trade.service;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.solmate.common.exception.GeneralException;
+import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.account.entity.Account;
+import org.solmate.domain.account.repository.AccountRepository;
+import org.solmate.domain.stock.entity.Stock;
+import org.solmate.domain.stock.repository.StockRepository;
+import org.solmate.domain.trade.dto.request.BuyOrderRequest;
+import org.solmate.domain.trade.dto.request.SellOrderRequest;
+import org.solmate.domain.trade.entity.Holdings;
+import org.solmate.domain.trade.entity.TradeHistory;
+import org.solmate.domain.trade.enums.TradeStatus;
+import org.solmate.domain.trade.enums.TradeType;
+import org.solmate.domain.trade.repository.HoldingsRepository;
+import org.solmate.domain.trade.repository.TradeHistoryRepository;
+import org.solmate.domain.user.entity.User;
+import org.solmate.domain.user.repository.UserRepository;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class TradeService {
+
+    private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final StockRepository stockRepository;
+    private final HoldingsRepository holdingsRepository;
+    private final TradeHistoryRepository tradeHistoryRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Transactional
+    public Long buyOrder(Long userId, BuyOrderRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        Account account = accountRepository.findByUser(user)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.ACCOUNT_NOT_FOUND));
+
+        Stock stock = stockRepository.findByTickerCode(request.ticker())
+            .orElseThrow(() -> new GeneralException(ErrorStatus.STOCK_NOT_FOUND));
+
+        // 시장가면 Redis 현재가 사용, 지정가면 요청 price 사용
+        BigDecimal price = resolvePrice(request.orderType(), request.ticker(), request.price());
+
+        // 잔액 검증
+        BigDecimal totalCost = price.multiply(request.quantity());
+        if (account.getCash().compareTo(totalCost) < 0) {
+            throw new GeneralException(ErrorStatus.INSUFFICIENT_CASH);
+        }
+
+        // 현금 선차감
+        account.subtractCash(totalCost);
+
+        // TradeHistory 저장
+        TradeHistory tradeHistory = TradeHistory.builder()
+            .user(user)
+            .stock(stock)
+            .price(price)
+            .quantity(request.quantity())
+            .tradeType(TradeType.BUY)
+            .tradeStatus(TradeStatus.PENDING)
+            .build();
+        tradeHistoryRepository.saveAndFlush(tradeHistory);
+
+        // Redis ZSet에 주문 추가
+        addOrderToRedis("orders:buy:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
+
+        return tradeHistory.getId();
+    }
+
+    @Transactional
+    public Long sellOrder(Long userId, SellOrderRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        Stock stock = stockRepository.findByTickerCode(request.ticker())
+            .orElseThrow(() -> new GeneralException(ErrorStatus.STOCK_NOT_FOUND));
+
+        Holdings holdings = holdingsRepository.findByUserAndTickerCode(user, request.ticker())
+            .orElseThrow(() -> new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS));
+
+        // 보유 수량 검증
+        if (holdings.getQuantity().compareTo(request.quantity()) < 0) {
+            throw new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS);
+        }
+
+        // 시장가면 Redis 현재가 사용, 지정가면 요청 price 사용
+        BigDecimal price = resolvePrice(request.orderType(), request.ticker(), request.price());
+
+        // 수량 선차감
+        holdings.subtractQuantity(request.quantity());
+
+        // TradeHistory 저장
+        TradeHistory tradeHistory = TradeHistory.builder()
+            .user(user)
+            .stock(stock)
+            .price(price)
+            .quantity(request.quantity())
+            .tradeType(TradeType.SELL)
+            .tradeStatus(TradeStatus.PENDING)
+            .build();
+        tradeHistoryRepository.saveAndFlush(tradeHistory);
+
+        // Redis ZSet에 주문 추가
+        addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
+
+        return tradeHistory.getId();
+    }
+
+    // 시장가: Redis 현재가 조회 / 지정가: 요청 price 사용
+    private BigDecimal resolvePrice(String orderType, String ticker, BigDecimal requestPrice) {
+        if ("MARKET".equals(orderType)) {
+            String curStr = (String) redisTemplate.opsForHash().get("stock:info:" + ticker, "cur");
+            if (curStr == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
+            return new BigDecimal(curStr);
+        }
+        return requestPrice;
+    }
+
+    // Redis ZSet에 주문 추가
+    private void addOrderToRedis(String key, Long orderId, Long userId, BigDecimal price, BigDecimal quantity) {
+        try {
+            Map<String, Object> orderData = new HashMap<>();
+            orderData.put("orderId", orderId);
+            orderData.put("userId", userId);
+            orderData.put("quantity", quantity);
+            orderData.put("timestamp", Instant.now().toEpochMilli());
+
+            String json = objectMapper.writeValueAsString(orderData);
+            redisTemplate.opsForZSet().add(key, json, price.doubleValue());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Redis 주문 직렬화 실패", e);
+        }
+    }
+}

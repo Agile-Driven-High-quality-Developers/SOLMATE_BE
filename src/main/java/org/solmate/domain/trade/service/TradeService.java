@@ -1,6 +1,7 @@
 package org.solmate.domain.trade.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,7 +47,6 @@ public class TradeService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-
     @Transactional
     public Long buyOrder(Long userId, BuyOrderRequest request) {
         User user = userRepository.findById(userId)
@@ -58,8 +58,19 @@ public class TradeService {
         Stock stock = stockRepository.findByTickerCode(request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.STOCK_NOT_FOUND));
 
-        // 시장가면 Redis 현재가 사용, 지정가면 요청 price 사용
-        BigDecimal price = resolvePrice(request.orderType(), request.ticker(), request.price());
+        // Redis 현재가 조회
+        BigDecimal currentPrice = getCurrentPrice(request.ticker());
+
+        // 시장가면 현재가, 지정가면 요청 price 사용
+        BigDecimal price = OrderType.MARKET.equals(request.orderType())
+            ? currentPrice
+            : request.price();
+
+        // 상/하한가 클램핑
+        price = clampPrice(price, currentPrice);
+
+        // 호가 단위 보정
+        price = adjustToTickSize(price);
 
         // 잔액 검증
         BigDecimal totalCost = price.multiply(request.quantity());
@@ -112,8 +123,19 @@ public class TradeService {
             throw new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS);
         }
 
-        // 시장가면 Redis 현재가 사용, 지정가면 요청 price 사용
-        BigDecimal price = resolvePrice(request.orderType(), request.ticker(), request.price());
+        // Redis 현재가 조회
+        BigDecimal currentPrice = getCurrentPrice(request.ticker());
+
+        // 시장가면 현재가, 지정가면 요청 price 사용
+        BigDecimal price = OrderType.MARKET.equals(request.orderType())
+            ? currentPrice
+            : request.price();
+
+        // 상/하한가 클램핑
+        price = clampPrice(price, currentPrice);
+
+        // 호가 단위 보정
+        price = adjustToTickSize(price);
 
         // 수량 선차감
         holdings.subtractQuantity(request.quantity());
@@ -144,14 +166,37 @@ public class TradeService {
         return tradeHistory.getId();
     }
 
-    // 시장가: Redis 현재가 조회 / 지정가: 요청 price 사용
-    private BigDecimal resolvePrice(OrderType orderType, String ticker, BigDecimal requestPrice) {
-        if (OrderType.MARKET.equals(orderType)) {
-            String curStr = (String) redisTemplate.opsForHash().get("stock:info:" + ticker, "cur");
-            if (curStr == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
-            return new BigDecimal(curStr);
-        }
-        return requestPrice;
+    // Redis에서 현재가 조회
+    private BigDecimal getCurrentPrice(String ticker) {
+        String curStr = (String) redisTemplate.opsForHash().get("stock:info:" + ticker, "cur");
+        if (curStr == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
+        return new BigDecimal(curStr);
+    }
+
+    // 상/하한가 클램핑 (±30%)
+    private BigDecimal clampPrice(BigDecimal price, BigDecimal currentPrice) {
+        BigDecimal upper = currentPrice.multiply(new BigDecimal("1.3"));
+        BigDecimal lower = currentPrice.multiply(new BigDecimal("0.7"));
+        return price.min(upper).max(lower);
+    }
+
+    // 호가 단위 보정 (내림)
+    private BigDecimal adjustToTickSize(BigDecimal price) {
+        int tickSize = getTickSize(price);
+        BigDecimal tick = new BigDecimal(tickSize);
+        return price.divide(tick, 0, RoundingMode.FLOOR).multiply(tick);
+    }
+
+    // 주가 범위별 호가 단위
+    private int getTickSize(BigDecimal price) {
+        int p = price.intValue();
+        if (p < 2000) return 1;
+        if (p < 5000) return 5;
+        if (p < 20000) return 10;
+        if (p < 50000) return 50;
+        if (p < 200000) return 100;
+        if (p < 500000) return 500;
+        return 1000;
     }
 
     // Redis ZSet에 주문 추가

@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 public class CandleAccumulatorService {
 
     private static final String CANDLE_KEY_PREFIX = "candle:1min:";
-    private static final String PRICE_KEY_PREFIX = "stock:info:";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     private final StringRedisTemplate redisTemplate;

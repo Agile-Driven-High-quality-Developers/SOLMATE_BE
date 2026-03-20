@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
 import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.solmate.domain.market.service.MarketIndicatorService;
 
 @Slf4j
 @Component
@@ -50,11 +50,8 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         return subscribedCodes;
     }
 
-    private final StringRedisTemplate stringRedisTemplate;
 
-    private static final String KOSPI_REDIS_KEY = "market:indicator:KOSPI";
-    private static final String KOSDAQ_REDIS_KEY = "market:indicator:KOSDAQ";
-    private static final String USD_KRW_REDIS_KEY = "market:indicator:USD_KRW";
+    private final MarketIndicatorService marketIndicatorService;
 
     @PostConstruct
     public void connect() {
@@ -136,14 +133,14 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             // 지수 데이터 처리
             if ("IJ_".equals(trCd)) {
                 LsWsIndexResponse response = objectMapper.readValue(message.getPayload(), LsWsIndexResponse.class);
-                handleIndexMessage(response);
+                marketIndicatorService.saveIndex(response);
                 return;
             }
 
             // 환율 추가
             if ("CUR".equals(trCd)) {
                 LsWsCurrencyResponse response = objectMapper.readValue(message.getPayload(), LsWsCurrencyResponse.class);
-                handleCurrencyMessage(response);
+                marketIndicatorService.saveCurrency(response);
                 return;
             }
 
@@ -160,55 +157,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         }
     }
 
-    // 지수 처리 메서드 추가
-    private void handleIndexMessage(LsWsIndexResponse response) {
-        try {
-            if (response.body() == null) return;
 
-            String trKey = response.header().tr_key();
-            String redisKey = "001".equals(trKey) ? KOSPI_REDIS_KEY : KOSDAQ_REDIS_KEY;
-
-            String json = objectMapper.writeValueAsString(
-                    objectMapper.createObjectNode()
-                            .put("cur", response.body().jisu())
-                            .put("change", response.body().change())
-                            .put("rate", response.body().drate())
-                            .put("sign", response.body().sign())
-                            .put("high", response.body().highjisu())
-                            .put("low", response.body().lowjisu())
-                            .put("asOf", response.body().time())
-            );
-
-            stringRedisTemplate.opsForValue().set(redisKey, json);
-            log.info("시장 지표 Redis 저장 완료 - {}: {}", redisKey, json);
-
-        } catch (Exception e) {
-            log.error("시장 지표 Redis 저장 실패: {}", e.getMessage());
-        }
-    }
-
-    private void handleCurrencyMessage(LsWsCurrencyResponse response) {
-        try {
-            if (response.body() == null) return;
-
-            String json = objectMapper.writeValueAsString(
-                    objectMapper.createObjectNode()
-                            .put("cur", response.body().price())
-                            .put("change", response.body().change())
-                            .put("rate", response.body().drate())
-                            .put("sign", response.body().sign())
-                            .put("high", response.body().high())
-                            .put("low", response.body().low())
-                            .put("asOf", response.body().time())
-            );
-
-            stringRedisTemplate.opsForValue().set(USD_KRW_REDIS_KEY, json);
-            log.info("환율 Redis 저장 완료 - {}: {}", USD_KRW_REDIS_KEY, json);
-
-        } catch (Exception e) {
-            log.error("환율 Redis 저장 실패: {}", e.getMessage());
-        }
-    }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {

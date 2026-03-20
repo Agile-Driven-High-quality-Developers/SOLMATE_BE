@@ -88,6 +88,16 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         }
     }
 
+    public void reconnect() {
+        try {
+            if (session != null && session.isOpen()) {
+                session.close();
+            }
+        } catch (Exception e) {
+            log.error("LS WebSocket 세션 종료 실패", e);
+        }
+    }
+
     // 연결 실패 또는 종료 시 5초 후 재연결 예약
     private void scheduleReconnect() {
         log.info("LS WebSocket 5초 후 재연결 시도");
@@ -115,7 +125,6 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         log.info("LS WebSocket 구독: {}", stockCode);
     }
 
-    // LS WebSocket에 종목 구독 해제 요청
     public void unsubscribe(String stockCode) {
         if (!subscribedCodes.contains(stockCode)) return;
         String token = lsTokenService.getToken();

@@ -47,7 +47,7 @@
                 const now = new Date().toLocaleTimeString();
                 const div = document.createElement('div');
                 div.className = 'msg';
-                div.innerHTML = `[${now}] 종목: ${data.shcode} | 현재가: <b>${data.price}</b> | 체결량: ${data.cvolume} | 체결시간: ${data.chetime}`;
+                div.innerHTML = `[${data.chetime}] ${data.stockCode} | 현재가: <b>${data.currentPrice}</b> | 전일대비: ${data.changePrice} (${data.changeRate}%) | 고가: ${data.highPrice} | 저가: ${data.lowPrice} | 거래량: ${data.volume}`;
                 const log = document.getElementById('log');
                 log.prepend(div);
             });

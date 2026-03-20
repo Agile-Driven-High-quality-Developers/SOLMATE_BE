@@ -9,14 +9,14 @@ public record LsWsRequest(Header header, Body body) {
     public static LsWsRequest subscribe(String token, String stockCode) {
         return new LsWsRequest(
                 new Header(token, "3"),
-                new Body("S3_", stockCode)
+                new Body("US3", String.format("U%-9s", stockCode))
         );
     }
 
     public static LsWsRequest unsubscribe(String token, String stockCode) {
         return new LsWsRequest(
                 new Header(token, "4"),
-                new Body("S3_", stockCode)
+                new Body("US3", String.format("U%-9s", stockCode))
         );
     }
 }

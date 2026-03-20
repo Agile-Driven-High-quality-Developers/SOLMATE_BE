@@ -59,6 +59,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
+    //websocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+
     // S3
     implementation platform('software.amazon.awssdk:bom:2.42.15')
     implementation 'software.amazon.awssdk:s3'

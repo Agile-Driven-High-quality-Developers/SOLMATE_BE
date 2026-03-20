@@ -35,6 +35,11 @@ public class LsTokenService {
         return issueToken();
     }
 
+    public void clearToken() {
+        redisTemplate.delete(REDIS_TOKEN_KEY);
+        log.info("LS 토큰 캐시 삭제");
+    }
+
     private String issueToken() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "client_credentials");

@@ -13,6 +13,7 @@ import lombok.Setter;
 public class LsProperties {
 
     private String baseUrl;
+    private String wsUrl;
     private String appKey;
     private String appSecret;
 }

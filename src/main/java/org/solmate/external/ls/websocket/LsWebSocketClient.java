@@ -3,7 +3,11 @@ package org.solmate.external.ls.websocket;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
 import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.websocket.LsWsRequest;
@@ -33,6 +37,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final SimpMessagingTemplate messagingTemplate;
     private final CandleAccumulatorService candleAccumulatorService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
 
     private WebSocketSession session;
     private final Set<String> subscribedCodes = ConcurrentHashMap.newKeySet();
@@ -48,14 +53,29 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             client.execute(this, lsProperties.getWsUrl()).whenComplete((sess, ex) -> {
                 if (ex != null) {
                     log.error("LS WebSocket 연결 실패", ex);
+                    scheduleReconnect();
                 } else {
                     this.session = sess;
                     log.info("LS WebSocket 연결 성공");
+                    resubscribeAll();
                 }
             });
         } catch (Exception e) {
             log.error("LS WebSocket 연결 오류", e);
+            scheduleReconnect();
         }
+    }
+
+    private void scheduleReconnect() {
+        log.info("LS WebSocket 5초 후 재연결 시도");
+        reconnectScheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+    }
+
+    private void resubscribeAll() {
+        if (subscribedCodes.isEmpty()) return;
+        log.info("LS WebSocket 재구독 시도: {}", subscribedCodes);
+        String token = lsTokenService.getToken();
+        subscribedCodes.forEach(code -> sendMessage(LsWsRequest.subscribe(token, code)));
     }
 
     public void subscribe(String stockCode) {
@@ -79,6 +99,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 return;
             }
             String json = objectMapper.writeValueAsString(request);
+            log.info("LS WebSocket 전송: {}", json);
             session.sendMessage(new TextMessage(json));
         } catch (IOException e) {
             log.error("LS WebSocket 메시지 전송 실패", e);
@@ -92,9 +113,9 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
             if (response.header() == null || response.body() == null) return;
 
-            String stockCode = response.header().tr_key();
+            String stockCode = response.body().shcode();
             candleAccumulatorService.accumulate(response.body());
-            messagingTemplate.convertAndSend("/topic/stocks/" + stockCode, response.body());
+            messagingTemplate.convertAndSend("/topic/stocks/" + stockCode, StockRealtimeResponse.from(response.body()));
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
         }
@@ -104,6 +125,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         log.warn("LS WebSocket 연결 종료: {}", status);
         this.session = null;
-        subscribedCodes.clear();
+        lsTokenService.clearToken();
+        scheduleReconnect();
     }
 }

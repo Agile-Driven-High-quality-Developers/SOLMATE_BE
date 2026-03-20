@@ -43,7 +43,16 @@ public enum ErrorStatus implements BaseStatus {
     /**
      * S3
      */
-    S3_FILE_UPLOAD_FAILED("S3_500", HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다.");
+    S3_FILE_UPLOAD_FAILED("S3_500", HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
+
+    /**
+     * Trade
+     */
+    ACCOUNT_NOT_FOUND("TRADE_404_1", HttpStatus.NOT_FOUND, "계좌를 찾을 수 없습니다."),
+    INSUFFICIENT_CASH("TRADE_400_1", HttpStatus.BAD_REQUEST, "잔액이 부족합니다."),
+    STOCK_NOT_FOUND("TRADE_404_2", HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
+    INSUFFICIENT_HOLDINGS("TRADE_400_2", HttpStatus.BAD_REQUEST, "보유 수량이 부족합니다."),
+    STOCK_PRICE_NOT_FOUND("TRADE_404_3", HttpStatus.NOT_FOUND, "Redis에 해당 종목 시세가 없습니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

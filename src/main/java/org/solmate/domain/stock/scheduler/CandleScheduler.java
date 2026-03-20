@@ -20,11 +20,43 @@ public class CandleScheduler {
     private final CandleAccumulatorService candleAccumulatorService;
     private final LsWebSocketClient lsWebSocketClient;
 
-    // 매 분 00초에 실행
-    @Scheduled(cron = "0 * * * * *")
+    // 매 분 00초 - 1분봉 DB 저장
+    @Scheduled(cron = "0 * * * * MON-FRI")
     public void flushMinuteCandles() {
-        Set<String> subscribedCodes = lsWebSocketClient.getSubscribedCodes();
-        log.info("1분봉 스케줄러 실행 - 구독 종목 수: {}", subscribedCodes.size());
-        subscribedCodes.forEach(candleAccumulatorService::flushToDb);
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        log.info("1분봉 스케줄러 실행 - 구독 종목 수: {}", codes.size());
+        codes.forEach(candleAccumulatorService::flushMinuteCandle);
+    }
+
+    // 매 5분 - 5분봉 Redis 초기화
+    @Scheduled(cron = "0 */5 * * * MON-FRI")
+    public void flush5MinCandles() {
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        log.info("5분봉 스케줄러 실행");
+        codes.forEach(candleAccumulatorService::flush5MinCandle);
+    }
+
+    // 매 30분 - 30분봉 Redis 초기화
+    @Scheduled(cron = "0 */30 * * * MON-FRI")
+    public void flush30MinCandles() {
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        log.info("30분봉 스케줄러 실행");
+        codes.forEach(candleAccumulatorService::flush30MinCandle);
+    }
+
+    // 매 정시 - 60분봉 Redis 초기화
+    @Scheduled(cron = "0 0 * * * MON-FRI")
+    public void flush60MinCandles() {
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        log.info("60분봉 스케줄러 실행");
+        codes.forEach(candleAccumulatorService::flush60MinCandle);
+    }
+
+    // 장 마감 15:30 - 일봉 DB 저장
+    @Scheduled(cron = "0 30 15 * * MON-FRI")
+    public void flushDailyCandles() {
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        log.info("일봉 스케줄러 실행");
+        codes.forEach(candleAccumulatorService::flushDailyCandle);
     }
 }

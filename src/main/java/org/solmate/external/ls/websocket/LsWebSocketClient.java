@@ -7,9 +7,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
 import org.solmate.domain.stock.service.OrderBookService;
+import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.websocket.LsWsOrderBookResponse;
 import org.solmate.external.ls.dto.websocket.LsWsRequest;
@@ -39,6 +41,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final LsTokenService lsTokenService;
     private final SimpMessagingTemplate messagingTemplate;
     private final CandleAccumulatorService candleAccumulatorService;
+    private final StockInfoService stockInfoService;
     private final OrderBookService orderBookService;
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
@@ -134,13 +137,19 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
                 if (response.body() == null) return;
                 candleAccumulatorService.accumulate(response.body());
+                stockInfoService.update(response.body());
                 messagingTemplate.convertAndSend("/topic/stocks/" + response.body().shcode(),
                         StockRealtimeResponse.from(response.body()));
 
             } else if ("UH1".equals(trCd)) {
                 LsWsOrderBookResponse response = objectMapper.treeToValue(node, LsWsOrderBookResponse.class);
                 if (response.body() == null) return;
+                String stockCode = response.body().shcode();
                 orderBookService.save(response.body());
+                StockOrderBookResponse orderBook = orderBookService.getOrderBook(stockCode);
+                if (orderBook != null) {
+                    messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, orderBook);
+                }
             }
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());

@@ -20,7 +20,7 @@ public class OrderBookService {
 
     private final StringRedisTemplate redisTemplate;
 
-    public StockOrderBookResponse save(LsWsOrderBookResponse.Body body) {
+    public void save(LsWsOrderBookResponse.Body body) {
         String key = INFO_KEY_PREFIX + body.shcode();
         redisTemplate.opsForHash().putAll(key, Map.ofEntries(
                 Map.entry("ask1", trim(body.offerho1())),
@@ -42,10 +42,10 @@ public class OrderBookService {
                 Map.entry("bidVol2", trim(body.unt_bidrem2())),
                 Map.entry("bidVol3", trim(body.unt_bidrem3())),
                 Map.entry("bidVol4", trim(body.unt_bidrem4())),
-                Map.entry("bidVol5", trim(body.unt_bidrem5()))
+                Map.entry("bidVol5", trim(body.unt_bidrem5())),
+                Map.entry("hotime", trim(body.hotime()))
         ));
 
-        return getOrderBook(body.shcode());
     }
 
     public StockOrderBookResponse getOrderBook(String stockCode) {
@@ -71,7 +71,8 @@ public class OrderBookService {
                 new StockOrderBookResponse.PriceLevel(parseLong((String) info.get("bid5")), parseLong((String) info.get("bidVol5")))
         );
 
-        return new StockOrderBookResponse(stockCode, currentPrice, changeRate, sellLevels, buyLevels);
+        String timestamp = (String) info.get("hotime");
+        return new StockOrderBookResponse(stockCode, currentPrice, changeRate, sellLevels, buyLevels, timestamp);
     }
 
     private String trim(String value) {

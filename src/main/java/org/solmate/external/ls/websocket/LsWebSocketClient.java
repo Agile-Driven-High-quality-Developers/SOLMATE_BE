@@ -27,6 +27,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
+import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -46,6 +50,12 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         return subscribedCodes;
     }
 
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final String KOSPI_REDIS_KEY = "market:indicator:KOSPI";
+    private static final String KOSDAQ_REDIS_KEY = "market:indicator:KOSDAQ";
+    private static final String USD_KRW_REDIS_KEY = "market:indicator:USD_KRW";
+
     @PostConstruct
     public void connect() {
         try {
@@ -58,6 +68,11 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                     this.session = sess;
                     log.info("LS WebSocket 연결 성공");
                     resubscribeAll();
+
+                    String token = lsTokenService.getToken();
+                    sendMessage(LsWsRequest.subscribeIndex(token, "001")); // KOSPI
+                    sendMessage(LsWsRequest.subscribeIndex(token, "301")); // KOSDAQ
+                    sendMessage(LsWsRequest.subscribeCurrency(token, "USD")); // 환율
                 }
             });
         } catch (Exception e) {
@@ -110,14 +125,88 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             log.info("LS WebSocket 수신: {}", message.getPayload());
+
+            // tr_cd 먼저 확인
+            var root = objectMapper.readTree(message.getPayload());
+            var header = root.get("header");
+            if (header == null || root.get("body") == null || root.get("body").isNull()) return;
+
+            String trCd = header.get("tr_cd") != null ? header.get("tr_cd").asText() : "";
+
+            // 지수 데이터 처리
+            if ("IJ_".equals(trCd)) {
+                LsWsIndexResponse response = objectMapper.readValue(message.getPayload(), LsWsIndexResponse.class);
+                handleIndexMessage(response);
+                return;
+            }
+
+            // 환율 추가
+            if ("CUR".equals(trCd)) {
+                LsWsCurrencyResponse response = objectMapper.readValue(message.getPayload(), LsWsCurrencyResponse.class);
+                handleCurrencyMessage(response);
+                return;
+            }
+
+            // 종목 데이터 처리 (기존 코드)
             LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
             if (response.header() == null || response.body() == null) return;
 
             String stockCode = response.body().shcode();
             candleAccumulatorService.accumulate(response.body());
             messagingTemplate.convertAndSend("/topic/stocks/" + stockCode, StockRealtimeResponse.from(response.body()));
+
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
+        }
+    }
+
+    // 지수 처리 메서드 추가
+    private void handleIndexMessage(LsWsIndexResponse response) {
+        try {
+            if (response.body() == null) return;
+
+            String trKey = response.header().tr_key();
+            String redisKey = "001".equals(trKey) ? KOSPI_REDIS_KEY : KOSDAQ_REDIS_KEY;
+
+            String json = objectMapper.writeValueAsString(
+                    objectMapper.createObjectNode()
+                            .put("cur", response.body().jisu())
+                            .put("change", response.body().change())
+                            .put("rate", response.body().drate())
+                            .put("sign", response.body().sign())
+                            .put("high", response.body().highjisu())
+                            .put("low", response.body().lowjisu())
+                            .put("asOf", response.body().time())
+            );
+
+            stringRedisTemplate.opsForValue().set(redisKey, json);
+            log.info("시장 지표 Redis 저장 완료 - {}: {}", redisKey, json);
+
+        } catch (Exception e) {
+            log.error("시장 지표 Redis 저장 실패: {}", e.getMessage());
+        }
+    }
+
+    private void handleCurrencyMessage(LsWsCurrencyResponse response) {
+        try {
+            if (response.body() == null) return;
+
+            String json = objectMapper.writeValueAsString(
+                    objectMapper.createObjectNode()
+                            .put("cur", response.body().price())
+                            .put("change", response.body().change())
+                            .put("rate", response.body().drate())
+                            .put("sign", response.body().sign())
+                            .put("high", response.body().high())
+                            .put("low", response.body().low())
+                            .put("asOf", response.body().time())
+            );
+
+            stringRedisTemplate.opsForValue().set(USD_KRW_REDIS_KEY, json);
+            log.info("환율 Redis 저장 완료 - {}: {}", USD_KRW_REDIS_KEY, json);
+
+        } catch (Exception e) {
+            log.error("환율 Redis 저장 실패: {}", e.getMessage());
         }
     }
 

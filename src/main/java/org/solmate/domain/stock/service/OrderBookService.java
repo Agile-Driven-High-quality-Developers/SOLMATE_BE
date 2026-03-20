@@ -20,7 +20,7 @@ public class OrderBookService {
 
     private final StringRedisTemplate redisTemplate;
 
-    public void save(LsWsOrderBookResponse.Body body) {
+    public StockOrderBookResponse save(LsWsOrderBookResponse.Body body) {
         String key = INFO_KEY_PREFIX + body.shcode();
         redisTemplate.opsForHash().putAll(key, Map.ofEntries(
                 Map.entry("ask1", trim(body.offerho1())),
@@ -44,6 +44,8 @@ public class OrderBookService {
                 Map.entry("bidVol4", trim(body.unt_bidrem4())),
                 Map.entry("bidVol5", trim(body.unt_bidrem5()))
         ));
+
+        return getOrderBook(body.shcode());
     }
 
     public StockOrderBookResponse getOrderBook(String stockCode) {

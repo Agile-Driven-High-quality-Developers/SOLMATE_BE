@@ -57,7 +57,7 @@
             fetch(`http://localhost:8080/api/stocks/${code}/subscribe`, { method: 'POST' });
 
             // 실시간 시세
-            priceSub = stompClient.subscribe(`/topic/stocks/${code}`, function (msg) {
+            priceSub = stompClient.subscribe(`/topic/stocks/${code}/quote`, function (msg) {
                 const data = JSON.parse(msg.body);
                 const div = document.createElement('div');
                 div.className = 'msg';

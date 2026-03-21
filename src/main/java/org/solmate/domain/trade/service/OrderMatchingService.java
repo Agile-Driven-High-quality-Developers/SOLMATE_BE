@@ -6,9 +6,14 @@ import java.util.Set;
 
 import org.solmate.domain.account.entity.Account;
 import org.solmate.domain.account.repository.AccountRepository;
+import org.solmate.domain.notification.entity.Notification;
+import org.solmate.domain.notification.enums.NotificationCategory;
+import org.solmate.domain.notification.enums.NotificationType;
+import org.solmate.domain.notification.repository.NotificationRepository;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
+import org.solmate.domain.trade.enums.TradeType;
 import org.solmate.domain.trade.repository.HoldingsRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
@@ -32,6 +37,7 @@ public class OrderMatchingService {
     private final HoldingsRepository holdingsRepository;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -50,7 +56,6 @@ public class OrderMatchingService {
     private void matchBuyOrders(String ticker, BigDecimal currentPrice) {
         String key = "orders:buy:" + ticker;
 
-        // score >= currentPrice → ZSet에서 currentPrice ~ +inf 범위 조회
         Set<String> orders = redisTemplate.opsForZSet()
             .rangeByScore(key, currentPrice.doubleValue(), Double.MAX_VALUE);
 
@@ -86,6 +91,9 @@ public class OrderMatchingService {
                 // TradeHistory 체결 처리
                 tradeHistory.updateStatus(TradeStatus.EXECUTED);
 
+                // 알림 저장
+                saveNotification(user, tradeHistory, currentPrice, quantity);
+
                 // Redis ZSet에서 제거
                 redisTemplate.opsForZSet().remove(key, json);
 
@@ -101,7 +109,6 @@ public class OrderMatchingService {
     private void matchSellOrders(String ticker, BigDecimal currentPrice) {
         String key = "orders:sell:" + ticker;
 
-        // score <= currentPrice → ZSet에서 0 ~ currentPrice 범위 조회
         Set<String> orders = redisTemplate.opsForZSet()
             .rangeByScore(key, 0, currentPrice.doubleValue());
 
@@ -129,6 +136,9 @@ public class OrderMatchingService {
                 // TradeHistory 체결 처리
                 tradeHistory.updateStatus(TradeStatus.EXECUTED);
 
+                // 알림 저장
+                saveNotification(user, tradeHistory, currentPrice, quantity);
+
                 // Redis ZSet에서 제거
                 redisTemplate.opsForZSet().remove(key, json);
 
@@ -140,6 +150,23 @@ public class OrderMatchingService {
         }
     }
 
+    // 체결 알림 저장
+    private void saveNotification(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
+        String stockName = tradeHistory.getStock().getStockName();
+        String tradeTypeStr = tradeHistory.getTradeType() == TradeType.BUY ? "매수" : "매도";
+        String content = String.format("[%s] %s %s주가 %s원에 체결되었습니다.",
+            stockName, tradeTypeStr, quantity.toPlainString(), currentPrice.toPlainString());
+
+        Notification notification = Notification.builder()
+            .user(user)
+            .notificationType(NotificationType.TRADE)
+            .category(NotificationCategory.TRADING)
+            .content(content)
+            .build();
+
+        notificationRepository.save(notification);
+    }
+
     // 매수 체결 시 Holdings 업데이트 (없으면 생성, 있으면 평균단가 재계산)
     private void updateHoldingsOnBuy(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
         String ticker = tradeHistory.getStock().getTickerCode();
@@ -147,7 +174,6 @@ public class OrderMatchingService {
         Holdings holdings = holdingsRepository.findByUserAndTickerCode(user, ticker).orElse(null);
 
         if (holdings == null) {
-            // 처음 매수 → 새로 생성
             Holdings newHoldings = Holdings.builder()
                 .user(user)
                 .stock(tradeHistory.getStock())
@@ -158,7 +184,6 @@ public class OrderMatchingService {
                 .build();
             holdingsRepository.save(newHoldings);
         } else {
-            // 기존 보유 → 평균단가 재계산
             BigDecimal existQty = holdings.getQuantity();
             BigDecimal existAvg = holdings.getAvgPrice();
 

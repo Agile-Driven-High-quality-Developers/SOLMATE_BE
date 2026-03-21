@@ -1,0 +1,7 @@
+package org.solmate.domain.trade.repository;
+
+import org.solmate.domain.trade.entity.TradeDiary;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface TradeDiaryRepository extends JpaRepository<TradeDiary, Long> {
+}

@@ -17,6 +17,7 @@ import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
 import org.solmate.domain.stock.service.OrderBookService;
 import org.solmate.domain.stock.service.StockInfoService;
+import org.solmate.domain.trade.service.OrderMatchingService;
 import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
 import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
@@ -51,6 +52,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final StockInfoService stockInfoService;
     private final OrderBookService orderBookService;
     private final MarketIndicatorService marketIndicatorService;
+    private final OrderMatchingService orderMatchingService;
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -180,6 +182,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 String stockCode = response.body().shcode();
                 candleAccumulatorService.accumulate(response.body());
                 stockInfoService.update(response.body());
+                orderMatchingService.match(stockCode);
                 messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
                         StockRealtimeResponse.from(response.body()));
                 broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");

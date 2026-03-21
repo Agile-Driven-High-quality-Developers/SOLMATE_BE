@@ -15,6 +15,7 @@ import org.solmate.domain.stock.entity.Stock;
 import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.domain.trade.dto.request.BuyOrderRequest;
 import org.solmate.domain.trade.dto.request.SellOrderRequest;
+import org.solmate.domain.trade.dto.response.OrderResponse;
 import org.solmate.domain.trade.dto.response.TradeHistoryResponse;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeDiary;
@@ -50,7 +51,7 @@ public class TradeService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
-    public Long buyOrder(Long userId, BuyOrderRequest request) {
+    public OrderResponse buyOrder(Long userId, BuyOrderRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
@@ -106,11 +107,11 @@ public class TradeService {
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:buy:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
-        return tradeHistory.getId();
+        return OrderResponse.of(tradeHistory);
     }
 
     @Transactional
-    public Long sellOrder(Long userId, SellOrderRequest request) {
+    public OrderResponse sellOrder(Long userId, SellOrderRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
@@ -165,7 +166,7 @@ public class TradeService {
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
-        return tradeHistory.getId();
+        return OrderResponse.of(tradeHistory);
     }
 
     @Transactional(readOnly = true)

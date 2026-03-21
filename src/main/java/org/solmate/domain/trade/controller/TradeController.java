@@ -4,6 +4,7 @@ import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.trade.dto.request.BuyOrderRequest;
 import org.solmate.domain.trade.dto.request.SellOrderRequest;
+import org.solmate.domain.trade.dto.response.OrderResponse;
 import org.solmate.domain.trade.dto.response.TradeHistoryResponse;
 import org.solmate.domain.trade.service.TradeService;
 import org.springframework.http.ResponseEntity;
@@ -30,18 +31,16 @@ public class TradeController {
 
     @Operation(summary = "매수 주문", description = "시장가/지정가 매수 주문을 접수합니다.")
     @PostMapping("/buy")
-    public ResponseEntity<ApiResponse<Long>> buyOrder(Authentication authentication, @RequestBody BuyOrderRequest request) {
+    public ResponseEntity<ApiResponse<OrderResponse>> buyOrder(Authentication authentication, @RequestBody BuyOrderRequest request) {
         Long userId = (Long) authentication.getPrincipal();
-        Long orderId = tradeService.buyOrder(userId, request);
-        return ApiResponse.success(SuccessStatus.BUY_ORDER_SUCCESS, orderId);
+        return ApiResponse.success(SuccessStatus.BUY_ORDER_SUCCESS, tradeService.buyOrder(userId, request));
     }
 
     @Operation(summary = "매도 주문", description = "시장가/지정가 매도 주문을 접수합니다.")
     @PostMapping("/sell")
-    public ResponseEntity<ApiResponse<Long>> sellOrder(Authentication authentication, @RequestBody SellOrderRequest request) {
+    public ResponseEntity<ApiResponse<OrderResponse>> sellOrder(Authentication authentication, @RequestBody SellOrderRequest request) {
         Long userId = (Long) authentication.getPrincipal();
-        Long orderId = tradeService.sellOrder(userId, request);
-        return ApiResponse.success(SuccessStatus.SELL_ORDER_SUCCESS, orderId);
+        return ApiResponse.success(SuccessStatus.SELL_ORDER_SUCCESS, tradeService.sellOrder(userId, request));
     }
 
     @Operation(summary = "종목별 매매내역 리스트 조회")

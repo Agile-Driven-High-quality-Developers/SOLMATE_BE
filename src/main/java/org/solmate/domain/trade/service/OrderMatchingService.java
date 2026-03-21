@@ -3,6 +3,7 @@ package org.solmate.domain.trade.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.solmate.domain.account.entity.Account;
 import org.solmate.domain.account.repository.AccountRepository;
@@ -41,6 +42,9 @@ public class OrderMatchingService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final String ORDER_LOCK_PREFIX = "lock:order:";
+    private static final long LOCK_EXPIRE_SECONDS = 5;
+
     @Transactional
     public void match(String ticker) {
         String curStr = (String) redisTemplate.opsForHash().get("stock:info:" + ticker, "cur");
@@ -69,35 +73,47 @@ public class OrderMatchingService {
                 BigDecimal quantity = new BigDecimal(node.get("quantity").asText());
                 double orderPrice = redisTemplate.opsForZSet().score(key, json);
 
-                TradeHistory tradeHistory = tradeHistoryRepository.findById(orderId).orElse(null);
-                if (tradeHistory == null || tradeHistory.getTradeStatus() != TradeStatus.PENDING) continue;
+                // Redis 락 획득 시도 (실패하면 다른 스레드가 처리 중 → 스킵)
+                String lockKey = ORDER_LOCK_PREFIX + orderId;
+                Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, "1", LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+                if (!Boolean.TRUE.equals(locked)) continue;
 
-                User user = userRepository.findById(userId).orElse(null);
-                if (user == null) continue;
+                try {
+                    TradeHistory tradeHistory = tradeHistoryRepository.findById(orderId).orElse(null);
+                    if (tradeHistory == null || tradeHistory.getTradeStatus() != TradeStatus.PENDING) continue;
 
-                // 차액 환불: (주문가 - 현재가) * 수량
-                BigDecimal refund = BigDecimal.valueOf(orderPrice)
-                    .subtract(currentPrice)
-                    .multiply(quantity);
+                    User user = userRepository.findById(userId).orElse(null);
+                    if (user == null) continue;
 
-                Account account = accountRepository.findByUser(user).orElse(null);
-                if (account != null && refund.compareTo(BigDecimal.ZERO) > 0) {
-                    account.addCash(refund);
+                    // 차액 환불: (주문가 - 현재가) * 수량
+                    BigDecimal refund = BigDecimal.valueOf(orderPrice)
+                        .subtract(currentPrice)
+                        .multiply(quantity);
+
+                    Account account = accountRepository.findByUser(user).orElse(null);
+                    if (account != null && refund.compareTo(BigDecimal.ZERO) > 0) {
+                        account.addCash(refund);
+                    }
+
+                    // Holdings 업데이트
+                    updateHoldingsOnBuy(user, tradeHistory, currentPrice, quantity);
+
+                    // TradeHistory 체결 처리
+                    tradeHistory.updateStatus(TradeStatus.FILLED);
+
+                    // 알림 저장
+                    saveNotification(user, tradeHistory, currentPrice, quantity);
+
+                    // Redis ZSet에서 제거
+                    redisTemplate.opsForZSet().remove(key, json);
+
+                    log.info("매수 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
+
+                } finally {
+                    // 락 해제
+                    redisTemplate.delete(lockKey);
                 }
-
-                // Holdings 업데이트
-                updateHoldingsOnBuy(user, tradeHistory, currentPrice, quantity);
-
-                // TradeHistory 체결 처리
-                tradeHistory.updateStatus(TradeStatus.FILLED);
-
-                // 알림 저장
-                saveNotification(user, tradeHistory, currentPrice, quantity);
-
-                // Redis ZSet에서 제거
-                redisTemplate.opsForZSet().remove(key, json);
-
-                log.info("매수 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 
             } catch (Exception e) {
                 log.error("매수 체결 처리 실패 - json: {}", json, e);
@@ -121,28 +137,40 @@ public class OrderMatchingService {
                 Long userId = node.get("userId").asLong();
                 BigDecimal quantity = new BigDecimal(node.get("quantity").asText());
 
-                TradeHistory tradeHistory = tradeHistoryRepository.findById(orderId).orElse(null);
-                if (tradeHistory == null || tradeHistory.getTradeStatus() != TradeStatus.PENDING) continue;
+                // Redis 락 획득 시도 (실패하면 다른 스레드가 처리 중 → 스킵)
+                String lockKey = ORDER_LOCK_PREFIX + orderId;
+                Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, "1", LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+                if (!Boolean.TRUE.equals(locked)) continue;
 
-                User user = userRepository.findById(userId).orElse(null);
-                if (user == null) continue;
+                try {
+                    TradeHistory tradeHistory = tradeHistoryRepository.findById(orderId).orElse(null);
+                    if (tradeHistory == null || tradeHistory.getTradeStatus() != TradeStatus.PENDING) continue;
 
-                // 현재가 * 수량 → Account에 입금
-                Account account = accountRepository.findByUser(user).orElse(null);
-                if (account != null) {
-                    account.addCash(currentPrice.multiply(quantity));
+                    User user = userRepository.findById(userId).orElse(null);
+                    if (user == null) continue;
+
+                    // 현재가 * 수량 → Account에 입금
+                    Account account = accountRepository.findByUser(user).orElse(null);
+                    if (account != null) {
+                        account.addCash(currentPrice.multiply(quantity));
+                    }
+
+                    // TradeHistory 체결 처리
+                    tradeHistory.updateStatus(TradeStatus.FILLED);
+
+                    // 알림 저장
+                    saveNotification(user, tradeHistory, currentPrice, quantity);
+
+                    // Redis ZSet에서 제거
+                    redisTemplate.opsForZSet().remove(key, json);
+
+                    log.info("매도 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
+
+                } finally {
+                    // 락 해제
+                    redisTemplate.delete(lockKey);
                 }
-
-                // TradeHistory 체결 처리
-                tradeHistory.updateStatus(TradeStatus.FILLED);
-
-                // 알림 저장
-                saveNotification(user, tradeHistory, currentPrice, quantity);
-
-                // Redis ZSet에서 제거
-                redisTemplate.opsForZSet().remove(key, json);
-
-                log.info("매도 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 
             } catch (Exception e) {
                 log.error("매도 체결 처리 실패 - json: {}", json, e);

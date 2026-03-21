@@ -55,7 +55,7 @@ public class TradeService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        Account account = accountRepository.findByUser(user)
+        Account account = accountRepository.findByUserWithLock(user)
             .orElseThrow(() -> new GeneralException(ErrorStatus.ACCOUNT_NOT_FOUND));
 
         Stock stock = stockRepository.findByTickerCode(request.ticker())

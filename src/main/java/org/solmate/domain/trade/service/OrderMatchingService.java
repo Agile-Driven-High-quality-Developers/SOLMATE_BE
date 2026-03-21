@@ -89,7 +89,7 @@ public class OrderMatchingService {
                 updateHoldingsOnBuy(user, tradeHistory, currentPrice, quantity);
 
                 // TradeHistory 체결 처리
-                tradeHistory.updateStatus(TradeStatus.EXECUTED);
+                tradeHistory.updateStatus(TradeStatus.FILLED);
 
                 // 알림 저장
                 saveNotification(user, tradeHistory, currentPrice, quantity);
@@ -134,7 +134,7 @@ public class OrderMatchingService {
                 }
 
                 // TradeHistory 체결 처리
-                tradeHistory.updateStatus(TradeStatus.EXECUTED);
+                tradeHistory.updateStatus(TradeStatus.FILLED);
 
                 // 알림 저장
                 saveNotification(user, tradeHistory, currentPrice, quantity);

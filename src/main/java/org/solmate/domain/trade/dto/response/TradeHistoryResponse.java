@@ -25,40 +25,27 @@ public record TradeHistoryResponse(
             boolean cancelable
     ) {
         public static OrderItem from(TradeHistory trade) {
-            String side = trade.getTradeType().name();
-            String sideLabel = side.equals("BUY") ? "매수" : "매도";
-
-            String orderType = trade.getOrderType().name();
-            String orderTypeLabel = orderType.equals("LIMIT") ? "지정가" : "시장가";
-
-            String status;
-            String statusLabel;
-            switch (trade.getTradeStatus()) {
-                case EXECUTED -> { status = "FILLED";    statusLabel = "체결"; }
-                case CANCELLED -> { status = "CANCELLED"; statusLabel = "취소"; }
-                default ->        { status = "PENDING";   statusLabel = "대기"; }
-            }
-
-            boolean cancelable = trade.getTradeStatus() == TradeStatus.PENDING;
-            BigDecimal orderAmount = trade.getPrice().multiply(trade.getQuantity());
-
             return new OrderItem(
                     trade.getId(),
-                    side, sideLabel,
-                    orderType, orderTypeLabel,
+                    trade.getTradeType().name(),
+                    trade.getTradeType().getLabel(),
+                    trade.getOrderType().name(),
+                    trade.getOrderType().getLabel(),
                     trade.getPrice(),
                     trade.getQuantity(),
-                    orderAmount,
-                    status, statusLabel,
-                    cancelable
+                    trade.getPrice().multiply(trade.getQuantity()),
+                    trade.getTradeStatus().name(),
+                    trade.getTradeStatus().getLabel(),
+                    trade.getTradeStatus() == TradeStatus.PENDING
             );
         }
     }
 
     public static TradeHistoryResponse of(String stockCode, String stockName, List<TradeHistory> trades) {
-        List<OrderItem> orders = trades.stream()
-                .map(OrderItem::from)
-                .toList();
-        return new TradeHistoryResponse(stockCode, stockName, orders);
+        return new TradeHistoryResponse(
+                stockCode,
+                stockName,
+                trades.stream().map(OrderItem::from).toList()
+        );
     }
 }

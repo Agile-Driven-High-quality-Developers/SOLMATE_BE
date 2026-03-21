@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.solmate.common.exception.GeneralException;
@@ -14,6 +15,7 @@ import org.solmate.domain.stock.entity.Stock;
 import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.domain.trade.dto.request.BuyOrderRequest;
 import org.solmate.domain.trade.dto.request.SellOrderRequest;
+import org.solmate.domain.trade.dto.response.TradeHistoryResponse;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeDiary;
 import org.solmate.domain.trade.entity.TradeHistory;
@@ -164,6 +166,19 @@ public class TradeService {
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
         return tradeHistory.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public TradeHistoryResponse getTradeHistories(Long userId, String tickerCode) {
+        List<TradeHistory> trades = tradeHistoryRepository.findByUserIdAndTickerCode(userId, tickerCode);
+
+        String stockName = trades.isEmpty()
+            ? stockRepository.findByTickerCode(tickerCode)
+                .map(Stock::getStockName)
+                .orElse("")
+            : trades.get(0).getStock().getStockName();
+
+        return TradeHistoryResponse.of(tickerCode, stockName, trades);
     }
 
     // Redis에서 현재가 조회

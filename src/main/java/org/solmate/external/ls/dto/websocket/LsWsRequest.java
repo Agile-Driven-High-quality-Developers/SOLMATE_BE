@@ -20,6 +20,20 @@ public record LsWsRequest(Header header, Body body) {
         );
     }
 
+    public static LsWsRequest subscribeOrderBook(String token, String stockCode) {
+        return new LsWsRequest(
+                new Header(token, "3"),
+                new Body("UH1", String.format("U%-9s", stockCode))
+        );
+    }
+
+    public static LsWsRequest unsubscribeOrderBook(String token, String stockCode) {
+        return new LsWsRequest(
+                new Header(token, "4"),
+                new Body("UH1", String.format("U%-9s", stockCode))
+        );
+    }
+
     public static LsWsRequest subscribeIndex(String token, String indexCode) {
         return new LsWsRequest(
                 new Header(token, "3"),

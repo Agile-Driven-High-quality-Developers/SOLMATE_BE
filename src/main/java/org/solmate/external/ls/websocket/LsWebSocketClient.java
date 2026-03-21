@@ -1,15 +1,26 @@
 package org.solmate.external.ls.websocket;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.solmate.domain.stock.dto.response.CandleResponse;
+import org.solmate.domain.market.service.MarketIndicatorService;
+import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
+import org.solmate.domain.stock.service.OrderBookService;
+import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.external.ls.LsProperties;
+import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
+import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
+import org.solmate.external.ls.dto.websocket.LsWsOrderBookResponse;
 import org.solmate.external.ls.dto.websocket.LsWsRequest;
 import org.solmate.external.ls.dto.websocket.LsWsStockResponse;
 import org.solmate.external.ls.service.LsTokenService;
@@ -21,15 +32,12 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
-import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Slf4j
 @Component
@@ -40,22 +48,25 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     private final LsTokenService lsTokenService;
     private final SimpMessagingTemplate messagingTemplate;
     private final CandleAccumulatorService candleAccumulatorService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final StockInfoService stockInfoService;
+    private final OrderBookService orderBookService;
+    private final MarketIndicatorService marketIndicatorService;
+    private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
 
     private WebSocketSession session;
     private final Set<String> subscribedCodes = ConcurrentHashMap.newKeySet();
 
+    // 현재 구독 중인 종목 코드 목록 반환 (스케줄러에서 사용)
     public Set<String> getSubscribedCodes() {
         return subscribedCodes;
     }
 
-    private final StringRedisTemplate stringRedisTemplate;
+    public void addSubscribedCode(String stockCode) {
+        subscribedCodes.add(stockCode);
+    }
 
-    private static final String KOSPI_REDIS_KEY = "market:indicator:KOSPI";
-    private static final String KOSDAQ_REDIS_KEY = "market:indicator:KOSDAQ";
-    private static final String USD_KRW_REDIS_KEY = "market:indicator:USD_KRW";
-
+    // 앱 시작 시 LS WebSocket 서버에 자동 연결
     @PostConstruct
     public void connect() {
         try {
@@ -81,32 +92,53 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         }
     }
 
+    public void reconnect() {
+        try {
+            if (session != null && session.isOpen()) {
+                session.close();
+            }
+        } catch (Exception e) {
+            log.error("LS WebSocket 세션 종료 실패", e);
+        }
+    }
+
+    // 연결 실패 또는 종료 시 5초 후 재연결 예약
     private void scheduleReconnect() {
         log.info("LS WebSocket 5초 후 재연결 시도");
         reconnectScheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
     }
 
+    // 재연결 후 기존 구독 종목 전체 재구독
     private void resubscribeAll() {
         if (subscribedCodes.isEmpty()) return;
         log.info("LS WebSocket 재구독 시도: {}", subscribedCodes);
         String token = lsTokenService.getToken();
-        subscribedCodes.forEach(code -> sendMessage(LsWsRequest.subscribe(token, code)));
+        subscribedCodes.forEach(code -> {
+            sendMessage(LsWsRequest.subscribe(token, code));
+            sendMessage(LsWsRequest.subscribeOrderBook(token, code));
+        });
     }
 
+    // LS WebSocket에 종목 실시간 체결 구독 요청
     public void subscribe(String stockCode) {
         if (subscribedCodes.contains(stockCode)) return;
-        sendMessage(LsWsRequest.subscribe(lsTokenService.getToken(), stockCode));
+        String token = lsTokenService.getToken();
+        sendMessage(LsWsRequest.subscribe(token, stockCode));
+        sendMessage(LsWsRequest.subscribeOrderBook(token, stockCode));
         subscribedCodes.add(stockCode);
         log.info("LS WebSocket 구독: {}", stockCode);
     }
 
     public void unsubscribe(String stockCode) {
         if (!subscribedCodes.contains(stockCode)) return;
-        sendMessage(LsWsRequest.unsubscribe(lsTokenService.getToken(), stockCode));
+        String token = lsTokenService.getToken();
+        sendMessage(LsWsRequest.unsubscribe(token, stockCode));
+        sendMessage(LsWsRequest.unsubscribeOrderBook(token, stockCode));
         subscribedCodes.remove(stockCode);
         log.info("LS WebSocket 구독 해제: {}", stockCode);
     }
 
+    // LS WebSocket 세션으로 JSON 메시지 전송
     private void sendMessage(LsWsRequest request) {
         try {
             if (session == null || !session.isOpen()) {
@@ -121,95 +153,71 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         }
     }
 
+    // LS WebSocket으로부터 체결 데이터 수신 시 봉 누적 및 STOMP 브로드캐스트
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
-            log.info("LS WebSocket 수신: {}", message.getPayload());
+            String payload = message.getPayload();
+            log.info("LS WebSocket 수신: {}", payload);
 
-            // tr_cd 먼저 확인
-            var root = objectMapper.readTree(message.getPayload());
-            var header = root.get("header");
-            if (header == null || root.get("body") == null || root.get("body").isNull()) return;
+            JsonNode node = objectMapper.readTree(payload);
+            JsonNode headerNode = node.get("header");
+            if (headerNode == null || node.get("body") == null || node.get("body").isNull()) return;
 
-            String trCd = header.get("tr_cd") != null ? header.get("tr_cd").asText() : "";
+            String trCd = headerNode.path("tr_cd").asText();
 
-            // 지수 데이터 처리
             if ("IJ_".equals(trCd)) {
-                LsWsIndexResponse response = objectMapper.readValue(message.getPayload(), LsWsIndexResponse.class);
-                handleIndexMessage(response);
-                return;
+                LsWsIndexResponse response = objectMapper.treeToValue(node, LsWsIndexResponse.class);
+                marketIndicatorService.saveIndex(response);
+
+            } else if ("CUR".equals(trCd)) {
+                LsWsCurrencyResponse response = objectMapper.treeToValue(node, LsWsCurrencyResponse.class);
+                marketIndicatorService.saveCurrency(response);
+
+            } else if ("US3".equals(trCd)) {
+                LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
+                if (response.body() == null) return;
+                String stockCode = response.body().shcode();
+                candleAccumulatorService.accumulate(response.body());
+                stockInfoService.update(response.body());
+                messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
+                        StockRealtimeResponse.from(response.body()));
+                broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
+                broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
+                broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
+                broadcastCandle(stockCode, "candle:60min:", "/topic/stocks/" + stockCode + "/candle/60min");
+                broadcastCandle(stockCode, "candle:1day:",  "/topic/stocks/" + stockCode + "/candle/1day");
+
+            } else if ("UH1".equals(trCd)) {
+                LsWsOrderBookResponse response = objectMapper.treeToValue(node, LsWsOrderBookResponse.class);
+                if (response.body() == null) return;
+                String stockCode = response.body().shcode();
+                orderBookService.save(response.body());
+                StockOrderBookResponse orderBook = orderBookService.getOrderBook(stockCode);
+                if (orderBook != null) {
+                    messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, orderBook);
+                }
             }
-
-            // 환율 추가
-            if ("CUR".equals(trCd)) {
-                LsWsCurrencyResponse response = objectMapper.readValue(message.getPayload(), LsWsCurrencyResponse.class);
-                handleCurrencyMessage(response);
-                return;
-            }
-
-            // 종목 데이터 처리 (기존 코드)
-            LsWsStockResponse response = objectMapper.readValue(message.getPayload(), LsWsStockResponse.class);
-            if (response.header() == null || response.body() == null) return;
-
-            String stockCode = response.body().shcode();
-            candleAccumulatorService.accumulate(response.body());
-            messagingTemplate.convertAndSend("/topic/stocks/" + stockCode, StockRealtimeResponse.from(response.body()));
-
         } catch (Exception e) {
             log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
         }
     }
 
-    // 지수 처리 메서드 추가
-    private void handleIndexMessage(LsWsIndexResponse response) {
+    // Redis에서 해당 봉 데이터를 읽어 STOMP 토픽으로 브로드캐스트
+    private void broadcastCandle(String stockCode, String redisPrefix, String topic) {
         try {
-            if (response.body() == null) return;
+            Map<Object, Object> data = candleAccumulatorService.getCurrentCandle(stockCode, redisPrefix);
+            if (data.isEmpty()) return;
 
-            String trKey = response.header().tr_key();
-            String redisKey = "001".equals(trKey) ? KOSPI_REDIS_KEY : KOSDAQ_REDIS_KEY;
-
-            String json = objectMapper.writeValueAsString(
-                    objectMapper.createObjectNode()
-                            .put("cur", response.body().jisu())
-                            .put("change", response.body().change())
-                            .put("rate", response.body().drate())
-                            .put("sign", response.body().sign())
-                            .put("high", response.body().highjisu())
-                            .put("low", response.body().lowjisu())
-                            .put("asOf", response.body().time())
-            );
-
-            stringRedisTemplate.opsForValue().set(redisKey, json);
-            log.info("시장 지표 Redis 저장 완료 - {}: {}", redisKey, json);
-
+            String startTime = (String) data.get("startTime");
+            LocalDateTime candleTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+            messagingTemplate.convertAndSend(topic, CandleResponse.fromRedis(data, candleTime));
         } catch (Exception e) {
-            log.error("시장 지표 Redis 저장 실패: {}", e.getMessage());
+            log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
         }
     }
 
-    private void handleCurrencyMessage(LsWsCurrencyResponse response) {
-        try {
-            if (response.body() == null) return;
-
-            String json = objectMapper.writeValueAsString(
-                    objectMapper.createObjectNode()
-                            .put("cur", response.body().price())
-                            .put("change", response.body().change())
-                            .put("rate", response.body().drate())
-                            .put("sign", response.body().sign())
-                            .put("high", response.body().high())
-                            .put("low", response.body().low())
-                            .put("asOf", response.body().time())
-            );
-
-            stringRedisTemplate.opsForValue().set(USD_KRW_REDIS_KEY, json);
-            log.info("환율 Redis 저장 완료 - {}: {}", USD_KRW_REDIS_KEY, json);
-
-        } catch (Exception e) {
-            log.error("환율 Redis 저장 실패: {}", e.getMessage());
-        }
-    }
-
+    // LS WebSocket 연결 종료 시 세션 초기화 후 재연결 시도
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         log.warn("LS WebSocket 연결 종료: {}", status);

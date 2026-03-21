@@ -8,8 +8,13 @@
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
         input, button { padding: 8px; margin: 4px; font-size: 14px; }
-        #log { margin-top: 20px; border: 1px solid #333; padding: 10px; height: 500px; overflow-y: auto; }
+        .section { margin-top: 30px; }
+        h3 { color: #aaffaa; border-bottom: 1px solid #333; padding-bottom: 6px; }
+        #log, #orderlog { border: 1px solid #333; padding: 10px; height: 300px; overflow-y: auto; margin-top: 10px; }
         .msg { border-bottom: 1px solid #333; padding: 4px 0; }
+        .sell { color: #6699ff; }
+        .buy  { color: #ff6666; }
+        #status { margin: 8px 0; }
     </style>
 </head>
 <body>
@@ -17,13 +22,24 @@
     <input id="stockCode" type="text" value="005930" placeholder="종목코드" />
     <button onclick="subscribe()">구독</button>
     <button onclick="unsubscribe()">구독해제</button>
-    <button onclick="clearLog()">초기화</button>
+    <button onclick="clearAll()">초기화</button>
     <div id="status">연결 중...</div>
-    <div id="log"></div>
+
+    <div class="section">
+        <h3>📈 실시간 시세 (/topic/stocks/{code})</h3>
+        <div id="log"></div>
+    </div>
+
+    <div class="section">
+        <h3>📊 실시간 호가 (/topic/orderbook/{code})</h3>
+        <div id="orderbook"></div>
+        <div id="orderlog"></div>
+    </div>
 
     <script>
         let stompClient = null;
-        let subscription = null;
+        let priceSub = null;
+        let orderbookSub = null;
 
         const socket = new SockJS('http://localhost:8080/ws');
         stompClient = Stomp.over(socket);
@@ -38,32 +54,66 @@
         function subscribe() {
             const code = document.getElementById('stockCode').value;
 
-            // 백엔드에 LS WebSocket 구독 요청
             fetch(`http://localhost:8080/api/stocks/${code}/subscribe`, { method: 'POST' });
 
-            // STOMP 토픽 구독
-            subscription = stompClient.subscribe(`/topic/stocks/${code}`, function (msg) {
+            // 실시간 시세
+            priceSub = stompClient.subscribe(`/topic/stocks/${code}/quote`, function (msg) {
                 const data = JSON.parse(msg.body);
-                const now = new Date().toLocaleTimeString();
                 const div = document.createElement('div');
                 div.className = 'msg';
                 div.innerHTML = `[${data.chetime}] ${data.stockCode} | 현재가: <b>${data.currentPrice}</b> | 전일대비: ${data.changePrice} (${data.changeRate}%) | 고가: ${data.highPrice} | 저가: ${data.lowPrice} | 거래량: ${data.volume}`;
-                const log = document.getElementById('log');
-                log.prepend(div);
+                document.getElementById('log').prepend(div);
+            });
+
+            // 실시간 호가
+            orderbookSub = stompClient.subscribe(`/topic/orderbook/${code}`, function (msg) {
+                const data = JSON.parse(msg.body);
+                renderOrderBook(data);
+
+                const div = document.createElement('div');
+                div.className = 'msg';
+                div.innerHTML = `[${data.timestamp}] 호가 업데이트 | 현재가: <b>${data.currentPrice}</b> (${data.changeRate}%)`;
+                document.getElementById('orderlog').prepend(div);
             });
 
             document.getElementById('status').innerText = `✅ ${code} 구독 중`;
         }
 
+        function renderOrderBook(data) {
+            let html = `<table style="width:300px; border-collapse:collapse; font-size:13px;">`;
+            html += `<tr><th>호가</th><th>잔량</th></tr>`;
+
+            [...data.sellLevels].reverse().forEach(level => {
+                html += `<tr class="sell"><td>${level.price.toLocaleString()}</td><td>${level.quantity.toLocaleString()}</td></tr>`;
+            });
+
+            html += `<tr style="background:#333; color:#fff; font-weight:bold;">
+                        <td>${data.currentPrice.toLocaleString()}</td>
+                        <td style="color:${data.changeRate >= 0 ? '#ff6666' : '#6699ff'}">
+                            ${data.changeRate >= 0 ? '+' : ''}${data.changeRate}%
+                        </td>
+                     </tr>`;
+
+            data.buyLevels.forEach(level => {
+                html += `<tr class="buy"><td>${level.price.toLocaleString()}</td><td>${level.quantity.toLocaleString()}</td></tr>`;
+            });
+
+            html += `</table>`;
+            document.getElementById('orderbook').innerHTML = html;
+        }
+
         function unsubscribe() {
             const code = document.getElementById('stockCode').value;
             fetch(`http://localhost:8080/api/stocks/${code}/subscribe`, { method: 'DELETE' });
-            if (subscription) subscription.unsubscribe();
+            if (priceSub) priceSub.unsubscribe();
+            if (orderbookSub) orderbookSub.unsubscribe();
             document.getElementById('status').innerText = '구독 해제됨';
         }
 
-        function clearLog() {
+        function clearAll() {
             document.getElementById('log').innerHTML = '';
+            document.getElementById('orderlog').innerHTML = '';
+            document.getElementById('orderbook').innerHTML = '';
         }
     </script>
 </body>

@@ -49,7 +49,7 @@ public class CandleService {
     // 특정 기간 일봉 조회 (DB + 오늘 진행 중인 봉 포함)
     public List<CandleResponse> getDailyCandles(String stockCode, int days) {
         LocalDateTime from = LocalDate.now().minusDays(days).atStartOfDay();
-        LocalDateTime to   = LocalDate.now().atStartOfDay();
+        LocalDateTime to   = LocalDate.now().plusDays(1).atStartOfDay();
 
         List<DailyCandle> candles = dailyCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);

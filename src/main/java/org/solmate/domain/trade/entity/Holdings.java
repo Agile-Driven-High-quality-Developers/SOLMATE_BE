@@ -73,4 +73,8 @@ public class Holdings extends BaseEntity {
     public void subtractQuantity(BigDecimal quantity) {
         this.quantity = this.quantity.subtract(quantity);
     }
+
+    public void addQuantity(BigDecimal quantity) {
+        this.quantity = this.quantity.add(quantity);
+    }
 }

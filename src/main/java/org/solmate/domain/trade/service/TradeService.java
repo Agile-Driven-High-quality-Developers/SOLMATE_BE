@@ -21,6 +21,7 @@ import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeDiary;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.OrderType;
+import org.solmate.domain.trade.enums.TradeDiaryStatus;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
 import org.solmate.domain.trade.repository.HoldingsRepository;
@@ -101,6 +102,7 @@ public class TradeService {
             .user(user)
             .tradeHistory(tradeHistory)
             .content(request.diary())
+            .status(TradeDiaryStatus.PENDING)
             .build();
         tradeDiaryRepository.save(tradeDiary);
 
@@ -160,6 +162,7 @@ public class TradeService {
             .user(user)
             .tradeHistory(tradeHistory)
             .content(request.diary())
+            .status(TradeDiaryStatus.PENDING)
             .build();
         tradeDiaryRepository.save(tradeDiary);
 

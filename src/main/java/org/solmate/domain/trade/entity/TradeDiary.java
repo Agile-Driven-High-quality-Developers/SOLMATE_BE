@@ -1,10 +1,13 @@
 package org.solmate.domain.trade.entity;
 
 import org.solmate.common.base.BaseEntity;
+import org.solmate.domain.trade.enums.TradeDiaryStatus;
 import org.solmate.domain.user.entity.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,10 +42,15 @@ public class TradeDiary extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TradeDiaryStatus status;
+
     @Builder
-    public TradeDiary(User user, TradeHistory tradeHistory, String content) {
+    public TradeDiary(User user, TradeHistory tradeHistory, String content, TradeDiaryStatus status) {
         this.user = user;
         this.tradeHistory = tradeHistory;
         this.content = content;
+        this.status = status;
     }
 }

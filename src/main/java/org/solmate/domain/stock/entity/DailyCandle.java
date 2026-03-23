@@ -21,7 +21,7 @@ import lombok.experimental.SuperBuilder;
 	name = "daily_candle",
 	uniqueConstraints = {
 		@UniqueConstraint(
-			name = "uk_minute_candle_stock_code_candle_time",
+			name = "uk_daily_candle_stock_code_candle_time",
 			columnNames = {"stock_code", "candle_time"}
 		)
 	},

@@ -22,10 +22,21 @@ public class StockAutoSubscriber {
     @EventListener(ApplicationReadyEvent.class)
     public void autoSubscribe() {
         List<String> codes = stockRepository.findAllTickerCodes();
-        List<String> targets = codes.stream().limit(200).toList();
-        log.info("자동 구독 시작: 총 {}개 종목", targets.size());
 
-        targets.forEach(lsWebSocketClient::subscribe);
+        log.info("자동 구독 시작: 총 {}개 종목", codes.size());
+
+        List<String> targets = codes.stream().limit(200).toList();
+        for (int i = 0; i < targets.size(); i++) {
+            lsWebSocketClient.subscribe(targets.get(i));
+            log.info("자동 구독 진행: {}/{} - {}", i + 1, targets.size(), targets.get(i));
+            try {
+                Thread.sleep(50); // 50ms 간격으로 전송
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
         log.info("자동 구독 등록 완료: {}개 종목", targets.size());
     }
 }

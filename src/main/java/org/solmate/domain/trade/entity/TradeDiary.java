@@ -46,6 +46,10 @@ public class TradeDiary extends BaseEntity {
     @Column(nullable = false)
     private TradeDiaryStatus status;
 
+    public void updateStatus(TradeDiaryStatus status) {
+        this.status = status;
+    }
+
     @Builder
     public TradeDiary(User user, TradeHistory tradeHistory, String content, TradeDiaryStatus status) {
         this.user = user;

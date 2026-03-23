@@ -1,5 +1,6 @@
 package org.solmate.domain.trade.controller;
 
+import org.solmate.common.jwt.CustomUserDetails;
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.trade.service.TradeOrderService;

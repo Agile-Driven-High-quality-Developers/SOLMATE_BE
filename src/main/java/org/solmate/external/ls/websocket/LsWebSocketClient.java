@@ -10,8 +10,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.solmate.domain.stock.dto.response.CandleResponse;
+import org.solmate.common.response.ApiResponse;
+import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.market.dto.response.MarketIndicatorRealtimeResponse;
 import org.solmate.domain.market.service.MarketIndicatorService;
+import org.solmate.domain.stock.dto.response.CandleResponse;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
@@ -169,10 +172,14 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             if ("IJ_".equals(trCd)) {
                 LsWsIndexResponse response = objectMapper.treeToValue(node, LsWsIndexResponse.class);
                 marketIndicatorService.saveIndex(response);
+                messagingTemplate.convertAndSend("/topic/market/indicators",
+                        new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), SuccessStatus.SUCCESS_200.getMessage(), MarketIndicatorRealtimeResponse.fromIndex(response)));
 
             } else if ("CUR".equals(trCd)) {
                 LsWsCurrencyResponse response = objectMapper.treeToValue(node, LsWsCurrencyResponse.class);
                 marketIndicatorService.saveCurrency(response);
+                messagingTemplate.convertAndSend("/topic/market/indicators",
+                        new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), SuccessStatus.SUCCESS_200.getMessage(), MarketIndicatorRealtimeResponse.fromCurrency(response)));
 
             } else if ("US3".equals(trCd)) {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);

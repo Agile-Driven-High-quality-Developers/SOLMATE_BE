@@ -165,15 +165,6 @@ public class OrderMatchingService {
                         account.addCash(currentPrice.multiply(quantity));
                     }
 
-                    // 수익 계산: (체결가 - 매수평균단가) * 수량
-                    // Holdings.avgPrice는 매도 주문 접수 시점의 평균단가
-                    String sellTicker = tradeHistory.getStock().getTickerCode();
-                    Holdings holdings = holdingsRepository.findByUserAndTickerCode(user, sellTicker).orElse(null);
-                    if (holdings != null) {
-                        BigDecimal profit = currentPrice.subtract(holdings.getAvgPrice()).multiply(quantity);
-                        tradeHistory.updateProfit(profit);
-                    }
-
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
 

@@ -62,17 +62,20 @@ public class TradeHistory extends BaseEntity {
     private OrderType orderType;
 
     /**
-     * 매도 체결 시 확정된 수익금 (매도일 때만 저장)
-     * - 체결 시점에 (체결가 - 매수평균단가) * 수량 으로 계산
-     * - 양수: 수익, 음수: 손실
+     * 매도 주문 접수 시점의 평균단가 스냅샷 (매도일 때만 저장)
+     * - 매도 후 추가 매수하면 Holdings.avgPrice가 바뀌기 때문에
+     *   매도 시점의 평균단가를 여기에 저장해두고 수익 계산에 사용
+     * - 수익금 = (체결가 - avgPriceSnapshot) * 수량
+     * - 수익률 = (체결가 - avgPriceSnapshot) / avgPriceSnapshot * 100
      * - 매수 주문의 경우 null
      */
-    @Column(name = "profit", precision = 19, scale = 4)
-    private BigDecimal profit;
+    @Column(name = "avg_price_snapshot", precision = 19, scale = 4)
+    private BigDecimal avgPriceSnapshot;
 
     @Builder
     public TradeHistory(User user, Stock stock, BigDecimal price, BigDecimal quantity,
-                        TradeType tradeType, TradeStatus tradeStatus, OrderType orderType) {
+                        TradeType tradeType, TradeStatus tradeStatus, OrderType orderType,
+                        BigDecimal avgPriceSnapshot) {
         this.user = user;
         this.stock = stock;
         this.price = price;
@@ -80,10 +83,7 @@ public class TradeHistory extends BaseEntity {
         this.tradeType = tradeType;
         this.tradeStatus = tradeStatus;
         this.orderType = orderType;
-    }
-
-    public void updateProfit(BigDecimal profit) {
-        this.profit = profit;
+        this.avgPriceSnapshot = avgPriceSnapshot;
     }
 
     public void updateStatus(TradeStatus tradeStatus) {

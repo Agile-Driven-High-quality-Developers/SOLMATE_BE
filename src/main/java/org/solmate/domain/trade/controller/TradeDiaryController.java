@@ -4,11 +4,13 @@ import java.util.List;
 
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.trade.dto.response.TradeDiaryDetailResponse;
 import org.solmate.domain.trade.dto.response.TradeDiaryListResponse;
 import org.solmate.domain.trade.service.TradeDiaryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,5 +34,14 @@ public class TradeDiaryController {
             @RequestParam(required = false) String stockName) {
         Long userId = (Long) authentication.getPrincipal();
         return ApiResponse.success(SuccessStatus.SUCCESS_200, tradeDiaryService.getMyDiaries(userId, stockName));
+    }
+
+    @Operation(summary = "매매일지 상세 조회", description = "매매일지 상세 정보와 댓글 목록을 조회합니다.")
+    @GetMapping("/{diaryId}")
+    public ResponseEntity<ApiResponse<TradeDiaryDetailResponse>> getDiaryDetail(
+            @PathVariable Long diaryId,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, tradeDiaryService.getDiaryDetail(diaryId, userId));
     }
 }

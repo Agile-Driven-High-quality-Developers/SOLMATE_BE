@@ -22,13 +22,21 @@ public record TradeDiaryListResponse(
         var tradeHistory = diary.getTradeHistory();
         boolean isSell = tradeHistory.getTradeType() == TradeType.SELL;
 
+        // 수익금 = (체결가 - avgPriceSnapshot) * 수량 (매도일 때만)
+        BigDecimal profit = null;
+        if (isSell && tradeHistory.getAvgPriceSnapshot() != null) {
+            profit = tradeHistory.getPrice()
+                .subtract(tradeHistory.getAvgPriceSnapshot())
+                .multiply(tradeHistory.getQuantity());
+        }
+
         return new TradeDiaryListResponse(
             diary.getId(),
             tradeHistory.getTradeType().name(),
             tradeHistory.getStock().getStockName(),
             tradeHistory.getPrice(),
             tradeHistory.getQuantity(),
-            isSell ? tradeHistory.getProfit() : null,
+            profit,
             diary.getContent(),
             commentRepository.countByTradeDiaryIdAndIsDeletedFalse(diary.getId()),
             diary.getCreatedAt()

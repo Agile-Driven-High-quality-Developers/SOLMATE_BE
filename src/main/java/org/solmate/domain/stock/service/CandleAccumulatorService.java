@@ -93,19 +93,19 @@ public class CandleAccumulatorService {
     // 5분봉 Redis 초기화 (매 5분)
     public void flush5MinCandle(String stockCode) {
         redisTemplate.delete(KEY_5MIN + stockCode);
-        log.info("5분봉 초기화: {}", stockCode);
+        log.debug("5분봉 초기화: {}", stockCode);
     }
 
     // 30분봉 Redis 초기화 (매 30분)
     public void flush30MinCandle(String stockCode) {
         redisTemplate.delete(KEY_30MIN + stockCode);
-        log.info("30분봉 초기화: {}", stockCode);
+        log.debug("30분봉 초기화: {}", stockCode);
     }
 
     // 60분봉 Redis 초기화 (매 60분)
     public void flush60MinCandle(String stockCode) {
         redisTemplate.delete(KEY_60MIN + stockCode);
-        log.info("60분봉 초기화: {}", stockCode);
+        log.debug("60분봉 초기화: {}", stockCode);
     }
 
     // 일봉 DB 저장 (장 마감 15:30)
@@ -148,7 +148,9 @@ public class CandleAccumulatorService {
 
         try {
             String startTime = (String) data.get("startTime");
-            LocalDateTime candleTime = LocalDateTime.parse(startTime, TIME_FORMATTER);
+            LocalDateTime candleTime = (startTime != null)
+                    ? LocalDateTime.parse(startTime, TIME_FORMATTER)
+                    : LocalDateTime.now().withSecond(0).withNano(0);
 
             MinuteCandle candle = MinuteCandle.builder()
                     .stockCode(stockCode)

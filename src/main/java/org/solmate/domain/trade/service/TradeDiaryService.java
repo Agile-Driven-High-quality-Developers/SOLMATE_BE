@@ -36,6 +36,19 @@ public class TradeDiaryService {
     }
 
     @Transactional(readOnly = true)
+    public List<TradeDiaryListResponse> getUserDiaries(Long targetUserId, Long currentUserId) {
+        // 멘토/멘티 관계이면 댓글 수 포함, 아니면 null
+        boolean isMentoringRelation =
+            mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(currentUserId, targetUserId, MentoringStatus.ACCEPTED)
+            || mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(targetUserId, currentUserId, MentoringStatus.ACCEPTED);
+
+        return tradeDiaryRepository.findAllByUserIdOrderByCreatedAtDesc(targetUserId)
+            .stream()
+            .map(diary -> TradeDiaryListResponse.of(diary, commentRepository, isMentoringRelation))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public TradeDiaryDetailResponse getDiaryDetail(Long diaryId, Long currentUserId) {
         var diary = tradeDiaryRepository.findById(diaryId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.TRADE_DIARY_NOT_FOUND));

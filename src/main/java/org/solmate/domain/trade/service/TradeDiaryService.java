@@ -61,7 +61,7 @@ public class TradeDiaryService {
     }
 
     @Transactional
-    public void updateDiary(Long diaryId, Long currentUserId, UpdateTradeDiaryRequest request) {
+    public TradeDiaryDetailResponse updateDiary(Long diaryId, Long currentUserId, UpdateTradeDiaryRequest request) {
         var diary = tradeDiaryRepository.findById(diaryId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.TRADE_DIARY_NOT_FOUND));
 
@@ -71,5 +71,8 @@ public class TradeDiaryService {
         }
 
         diary.updateContent(request.content());
+
+        var comments = commentRepository.findAllByTradeDiaryIdAndIsDeletedFalseOrderByCreatedAtAsc(diaryId);
+        return TradeDiaryDetailResponse.of(diary, comments, mentoringRepository, currentUserId);
     }
 }

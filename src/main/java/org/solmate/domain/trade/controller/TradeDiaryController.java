@@ -50,12 +50,11 @@ public class TradeDiaryController {
 
     @Operation(summary = "매매일지 수정", description = "매매일지 내용을 수정합니다.")
     @PatchMapping("/{diaryId}")
-    public ResponseEntity<ApiResponse<Void>> updateDiary(
+    public ResponseEntity<ApiResponse<TradeDiaryDetailResponse>> updateDiary(
             @PathVariable Long diaryId,
             Authentication authentication,
             @RequestBody UpdateTradeDiaryRequest request) {
         Long userId = (Long) authentication.getPrincipal();
-        tradeDiaryService.updateDiary(diaryId, userId, request);
-        return ApiResponse.success(SuccessStatus.SUCCESS_200, null);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, tradeDiaryService.updateDiary(diaryId, userId, request));
     }
 }

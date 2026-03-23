@@ -7,6 +7,7 @@ import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.social.enums.MentoringStatus;
 import org.solmate.domain.social.repository.CommentRepository;
 import org.solmate.domain.social.repository.MentoringRepository;
+import org.solmate.domain.trade.dto.request.UpdateTradeDiaryRequest;
 import org.solmate.domain.trade.dto.response.TradeDiaryDetailResponse;
 import org.solmate.domain.trade.dto.response.TradeDiaryListResponse;
 import org.solmate.domain.trade.repository.TradeDiaryRepository;
@@ -57,5 +58,18 @@ public class TradeDiaryService {
         var comments = commentRepository.findAllByTradeDiaryIdAndIsDeletedFalseOrderByCreatedAtAsc(diaryId);
 
         return TradeDiaryDetailResponse.of(diary, comments, mentoringRepository, currentUserId);
+    }
+
+    @Transactional
+    public void updateDiary(Long diaryId, Long currentUserId, UpdateTradeDiaryRequest request) {
+        var diary = tradeDiaryRepository.findById(diaryId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.TRADE_DIARY_NOT_FOUND));
+
+        // 본인 매매일지만 수정 가능
+        if (!diary.getUser().getId().equals(currentUserId)) {
+            throw new GeneralException(ErrorStatus.FORBIDDEN);
+        }
+
+        diary.updateContent(request.content());
     }
 }

@@ -34,6 +34,8 @@ public enum SuccessStatus implements BaseStatus {
     MOCK_DATA_INIT_SUCCESS("TRADE_200", HttpStatus.OK, "Mock 시세 데이터 초기화 성공"),
     BUY_ORDER_SUCCESS("TRADE_201", HttpStatus.CREATED, "매수 주문 접수 성공"),
     SELL_ORDER_SUCCESS("TRADE_201", HttpStatus.CREATED, "매도 주문 접수 성공"),
+    HOLDINGS_SUCCESS("TRADE_200", HttpStatus.OK, "보유 종목 조회 성공");
+    SELL_ORDER_SUCCESS("TRADE_201", HttpStatus.CREATED, "매도 주문 접수 성공"),
 
     /**
      * Mentoring

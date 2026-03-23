@@ -5,6 +5,7 @@ import java.util.List;
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.stock.dto.response.CandleResponse;
+import org.solmate.domain.stock.dto.response.StockListResponse;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.CandleService;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
@@ -35,6 +36,12 @@ public class StockController {
     private final CandleService candleService;
     private final OrderBookService orderBookService;
     private final LsWebSocketClient lsWebSocketClient;
+
+    @Operation(summary = "종목 리스트 조회 (현재가 포함)")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<StockListResponse>>> getStockList() {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, stockService.getStockList());
+    }
 
     @Operation(summary = "주식 현재가 조회")
     @GetMapping("/{stockCode}/quote")

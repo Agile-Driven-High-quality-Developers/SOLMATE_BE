@@ -3,6 +3,7 @@ package org.solmate.domain.trade.dto.response;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import org.solmate.common.s3.S3Service;
 import org.solmate.domain.trade.entity.Holdings;
 
 public record HoldingsResponse(
@@ -16,7 +17,7 @@ public record HoldingsResponse(
         BigDecimal returnRate,
         BigDecimal returnAmount
 ) {
-    public static HoldingsResponse of(Holdings holdings, BigDecimal currentPrice) {
+    public static HoldingsResponse of(Holdings holdings, BigDecimal currentPrice, S3Service s3Service) {
         BigDecimal quantity = holdings.getQuantity();
         BigDecimal avgPrice = holdings.getAvgPrice();
 
@@ -29,10 +30,13 @@ public record HoldingsResponse(
                         .multiply(BigDecimal.valueOf(100))
                         .setScale(2, RoundingMode.HALF_UP);
 
+        String logoKey = holdings.getStock().getStockLogo();
+        String stockLogo = (logoKey != null) ? s3Service.buildFileUrl(logoKey) : null;
+
         return new HoldingsResponse(
                 holdings.getTickerCode(),
                 holdings.getStock().getStockName(),
-                holdings.getStock().getStockLogo(),
+                stockLogo,
                 quantity,
                 avgPrice,
                 currentPrice,

@@ -18,6 +18,10 @@ public class StockInfoService {
 
     private final StringRedisTemplate redisTemplate;
 
+    public Map<Object, Object> getStockInfo(String stockCode) {
+        return redisTemplate.opsForHash().entries(INFO_KEY_PREFIX + stockCode);
+    }
+
     public void update(LsWsStockResponse.Body body) {
         redisTemplate.opsForHash().putAll(INFO_KEY_PREFIX + body.shcode(), Map.of(
                 "cur", body.price() == null ? "0" : body.price().trim(),

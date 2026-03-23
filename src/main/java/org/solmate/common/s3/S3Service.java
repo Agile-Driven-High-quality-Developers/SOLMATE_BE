@@ -63,8 +63,8 @@ public class S3Service {
                 .build();
     }
 
-    private String buildFileUrl(String key) {
-        return "https://" + bucket + ".s3.amazonaws.com/" + key;
+    public String buildFileUrl(String key) {
+        return "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + key;
     }
 
     private String extractKey(String fileUrl) {

@@ -10,8 +10,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.solmate.domain.stock.dto.response.CandleResponse;
+import org.solmate.common.response.ApiResponse;
+import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.market.dto.response.MarketIndicatorRealtimeResponse;
 import org.solmate.domain.market.service.MarketIndicatorService;
+import org.solmate.domain.stock.dto.response.CandleResponse;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.dto.response.StockRealtimeResponse;
 import org.solmate.domain.stock.service.CandleAccumulatorService;
@@ -129,7 +132,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         sendMessage(LsWsRequest.subscribe(token, stockCode));
         sendMessage(LsWsRequest.subscribeOrderBook(token, stockCode));
         subscribedCodes.add(stockCode);
-        log.info("LS WebSocket 구독: {}", stockCode);
+        log.debug("LS WebSocket 구독: {}", stockCode);
     }
 
     public void unsubscribe(String stockCode) {
@@ -169,20 +172,24 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             if ("IJ_".equals(trCd)) {
                 LsWsIndexResponse response = objectMapper.treeToValue(node, LsWsIndexResponse.class);
                 marketIndicatorService.saveIndex(response);
+                messagingTemplate.convertAndSend("/topic/market/indicators",
+                        new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), SuccessStatus.SUCCESS_200.getMessage(), MarketIndicatorRealtimeResponse.fromIndex(response)));
 
             } else if ("CUR".equals(trCd)) {
                 LsWsCurrencyResponse response = objectMapper.treeToValue(node, LsWsCurrencyResponse.class);
                 marketIndicatorService.saveCurrency(response);
+                messagingTemplate.convertAndSend("/topic/market/indicators",
+                        new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), SuccessStatus.SUCCESS_200.getMessage(), MarketIndicatorRealtimeResponse.fromCurrency(response)));
 
             } else if ("US3".equals(trCd)) {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
                 if (response.body() == null) return;
                 String stockCode = response.body().shcode();
-                candleAccumulatorService.accumulate(response.body());
                 stockInfoService.update(response.body());
-                orderMatchingService.match(stockCode);
                 messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
                         StockRealtimeResponse.from(response.body()));
+                candleAccumulatorService.accumulate(response.body());
+                orderMatchingService.match(stockCode);
                 broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
                 broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
                 broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
@@ -214,7 +221,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             LocalDateTime candleTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
             messagingTemplate.convertAndSend(topic, CandleResponse.fromRedis(data, candleTime));
         } catch (Exception e) {
-            log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
+            // log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
         }
     }
 

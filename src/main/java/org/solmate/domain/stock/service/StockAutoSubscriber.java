@@ -27,7 +27,7 @@ public class StockAutoSubscriber {
         List<String> targets = codes.stream().limit(200).toList();
         for (int i = 0; i < targets.size(); i++) {
             lsWebSocketClient.subscribe(targets.get(i));
-            log.info("자동 구독 진행: {}/{} - {}", i + 1, targets.size(), targets.get(i));
+            log.debug("자동 구독 진행: {}/{} - {}", i + 1, targets.size(), targets.get(i));
             try {
                 Thread.sleep(50); // 50ms 간격으로 전송
             } catch (InterruptedException e) {

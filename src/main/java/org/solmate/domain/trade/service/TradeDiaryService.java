@@ -31,7 +31,7 @@ public class TradeDiaryService {
             : tradeDiaryRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
 
         return diaries.stream()
-            .map(diary -> TradeDiaryListResponse.of(diary, commentRepository))
+            .map(diary -> TradeDiaryListResponse.of(diary, commentRepository, true))
             .toList();
     }
 

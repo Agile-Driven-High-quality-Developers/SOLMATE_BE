@@ -15,10 +15,10 @@ public record TradeDiaryListResponse(
     BigDecimal quantity,
     BigDecimal profit,       // 수익금 (매도일 때만, 매수는 null)
     String content,
-    long commentCount,
+    Long commentCount,       // 멘토/멘티 관계일 때만, 아니면 null
     LocalDateTime createdAt
 ) {
-    public static TradeDiaryListResponse of(TradeDiary diary, CommentRepository commentRepository) {
+    public static TradeDiaryListResponse of(TradeDiary diary, CommentRepository commentRepository, boolean includeCommentCount) {
         var tradeHistory = diary.getTradeHistory();
         boolean isSell = tradeHistory.getTradeType() == TradeType.SELL;
 
@@ -30,6 +30,10 @@ public record TradeDiaryListResponse(
                 .multiply(tradeHistory.getQuantity());
         }
 
+        Long commentCount = includeCommentCount
+            ? commentRepository.countByTradeDiaryIdAndIsDeletedFalse(diary.getId())
+            : null;
+
         return new TradeDiaryListResponse(
             diary.getId(),
             tradeHistory.getTradeType().name(),
@@ -38,7 +42,7 @@ public record TradeDiaryListResponse(
             tradeHistory.getQuantity(),
             profit,
             diary.getContent(),
-            commentRepository.countByTradeDiaryIdAndIsDeletedFalse(diary.getId()),
+            commentCount,
             diary.getCreatedAt()
         );
     }

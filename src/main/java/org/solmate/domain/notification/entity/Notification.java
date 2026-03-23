@@ -45,7 +45,7 @@ public class Notification extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String payload;
 
     @Column(name = "act_url")

@@ -14,7 +14,7 @@ public interface TradeDiaryRepository extends JpaRepository<TradeDiary, Long> {
 
     Optional<TradeDiary> findByTradeHistoryId(Long tradeHistoryId);
 
-    // 내 매매일지 목록 조회 (최신순)
-    @Query("SELECT td FROM TradeDiary td JOIN FETCH td.tradeHistory th JOIN FETCH th.stock WHERE td.user.id = :userId ORDER BY td.createdAt DESC")
+    // 내 매매일지 목록 조회 (최신순, 체결된 것만)
+    @Query("SELECT td FROM TradeDiary td JOIN FETCH td.tradeHistory th JOIN FETCH th.stock WHERE td.user.id = :userId AND td.status = 'FILLED' ORDER BY td.createdAt DESC")
     List<TradeDiary> findAllByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 }

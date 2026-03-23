@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.solmate.common.exception.GeneralException;
+import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.trade.dto.response.HoldingsResponse;
 import org.solmate.domain.trade.entity.Holdings;
@@ -20,13 +21,14 @@ public class HoldingsService {
 
     private final HoldingsRepository holdingsRepository;
     private final StringRedisTemplate redisTemplate;
+    private final S3Service s3Service;
 
     @Transactional(readOnly = true)
     public List<HoldingsResponse> getHoldings(Long userId) {
         List<Holdings> holdings = holdingsRepository.findByUserId(userId);
 
         return holdings.stream()
-            .map(h -> HoldingsResponse.of(h, getCurrentPrice(h.getTickerCode())))
+            .map(h -> HoldingsResponse.of(h, getCurrentPrice(h.getTickerCode()), s3Service))
             .toList();
     }
 

@@ -7,7 +7,7 @@ import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.trade.dto.response.HoldingsResponse;
 import org.solmate.domain.trade.service.HoldingsService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,8 +26,8 @@ public class HoldingsController {
 
     @Operation(summary = "보유 종목 조회", description = "로그인한 사용자의 보유 종목 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<HoldingsResponse>>> getHoldings(Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+    public ResponseEntity<ApiResponse<List<HoldingsResponse>>> getHoldings(
+            @AuthenticationPrincipal Long userId) {
         return ApiResponse.success(SuccessStatus.HOLDINGS_SUCCESS, holdingsService.getHoldings(userId));
     }
 }

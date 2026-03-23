@@ -214,7 +214,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             LocalDateTime candleTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
             messagingTemplate.convertAndSend(topic, CandleResponse.fromRedis(data, candleTime));
         } catch (Exception e) {
-            log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
+            // log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
         }
     }
 

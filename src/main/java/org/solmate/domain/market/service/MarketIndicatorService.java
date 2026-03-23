@@ -50,7 +50,7 @@ public class MarketIndicatorService {
             );
 
             stringRedisTemplate.opsForValue().set(redisKey, json);
-            log.info("시장 지표 Redis 저장 완료 - {}: {}", redisKey, json);
+            log.debug("시장 지표 Redis 저장 완료 - {}: {}", redisKey, json);
 
         } catch (Exception e) {
             log.error("시장 지표 Redis 저장 실패: {}", e.getMessage());
@@ -74,7 +74,7 @@ public class MarketIndicatorService {
             );
 
             stringRedisTemplate.opsForValue().set(USD_KRW_KEY, json);
-            log.info("환율 Redis 저장 완료 - {}: {}", USD_KRW_KEY, json);
+            log.debug("환율 Redis 저장 완료 - {}: {}", USD_KRW_KEY, json);
 
         } catch (Exception e) {
             log.error("환율 Redis 저장 실패: {}", e.getMessage());
@@ -85,7 +85,7 @@ public class MarketIndicatorService {
         try {
             String json = stringRedisTemplate.opsForValue().get(redisKey);
             if (json == null) {
-                log.warn("Redis에 데이터 없음 - {}", redisKey);
+                log.debug("Redis에 데이터 없음 - {}", redisKey);
                 return null;
             }
 

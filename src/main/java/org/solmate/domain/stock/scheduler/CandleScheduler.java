@@ -24,7 +24,7 @@ public class CandleScheduler {
     @Scheduled(cron = "0 * * * * MON-FRI")
     public void flushMinuteCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
-        log.info("1분봉 스케줄러 실행 - 구독 종목 수: {}", codes.size());
+        log.debug("1분봉 스케줄러 실행 - 구독 종목 수: {}", codes.size());
         codes.forEach(candleAccumulatorService::flushMinuteCandle);
     }
 
@@ -32,7 +32,7 @@ public class CandleScheduler {
     @Scheduled(cron = "0 */5 * * * MON-FRI")
     public void flush5MinCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
-        log.info("5분봉 스케줄러 실행");
+        log.debug("5분봉 스케줄러 실행");
         codes.forEach(candleAccumulatorService::flush5MinCandle);
     }
 
@@ -40,7 +40,7 @@ public class CandleScheduler {
     @Scheduled(cron = "0 */30 * * * MON-FRI")
     public void flush30MinCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
-        log.info("30분봉 스케줄러 실행");
+        log.debug("30분봉 스케줄러 실행");
         codes.forEach(candleAccumulatorService::flush30MinCandle);
     }
 
@@ -48,7 +48,7 @@ public class CandleScheduler {
     @Scheduled(cron = "0 0 * * * MON-FRI")
     public void flush60MinCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
-        log.info("60분봉 스케줄러 실행");
+        log.debug("60분봉 스케줄러 실행");
         codes.forEach(candleAccumulatorService::flush60MinCandle);
     }
 
@@ -56,7 +56,7 @@ public class CandleScheduler {
     @Scheduled(cron = "0 30 15 * * MON-FRI")
     public void flushDailyCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
-        log.info("일봉 스케줄러 실행");
+        log.debug("일봉 스케줄러 실행");
         codes.forEach(candleAccumulatorService::flushDailyCandle);
     }
 }

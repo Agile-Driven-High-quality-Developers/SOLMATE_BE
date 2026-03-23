@@ -21,4 +21,7 @@ public interface MentoringRepository extends JpaRepository<MentoringRelation, Lo
     // 멘티의 특정 멘토링 관계를 제외한 나머지 PENDING 요청 삭제
     // (멘토 수락 시 다른 멘토에게 보낸 PENDING 요청 정리)
     void deleteAllByMenteeAndStatusAndIdNot(User mentee, MentoringStatus status, Long excludeId);
+
+    // 댓글 작성자가 나의 멘토인지 확인 (mentor=댓글작성자, mentee=나, status=ACCEPTED)
+    boolean existsByMentorIdAndMenteeIdAndStatus(Long mentorId, Long menteeId, MentoringStatus status);
 }

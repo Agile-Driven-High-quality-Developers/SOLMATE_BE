@@ -9,6 +9,7 @@ import org.solmate.domain.trade.service.HoldingsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,4 +31,13 @@ public class HoldingsController {
             @AuthenticationPrincipal Long userId) {
         return ApiResponse.success(SuccessStatus.HOLDINGS_SUCCESS, holdingsService.getHoldings(userId));
     }
+
+
+    @Operation(summary = "타인 보유 종목 조회", description = "타인의 보유 종목 목록을 조회합니다.")
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<List<HoldingsResponse>>> getOtherHoldings(@PathVariable Long userId) {
+        return ApiResponse.success(SuccessStatus.HOLDINGS_SUCCESS, holdingsService.getHoldings(userId));
+    }
+
+
 }

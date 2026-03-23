@@ -20,7 +20,8 @@
 </head>
 <body>
     <h2>📦 보유 종목 실시간</h2>
-    <input id="token" type="text" placeholder="JWT 토큰 입력" style="width: 500px;" />
+    <input id="token" type="text" placeholder="JWT 토큰 입력" style="width: 400px;" />
+    <input id="targetUserId" type="text" placeholder="타인 userId (비우면 내 것)" style="width: 200px;" />
     <button onclick="start()">실시간 시작</button>
     <button onclick="stop()">중지</button>
     <div id="status">대기 중...</div>
@@ -53,7 +54,11 @@
             if (!token) { document.getElementById('status').innerText = '❌ 토큰을 입력하세요.'; return; }
 
             // 1. REST API로 초기 보유 종목 로드
-            const res = await fetch('http://localhost:8080/api/holdings', {
+            const targetUserId = document.getElementById('targetUserId').value.trim();
+            const url = targetUserId
+                ? `http://localhost:8080/api/holdings/${targetUserId}`
+                : 'http://localhost:8080/api/holdings';
+            const res = await fetch(url, {
                 headers: { 'Authorization': 'Bearer ' + token },
                 cache: 'no-store'
             });

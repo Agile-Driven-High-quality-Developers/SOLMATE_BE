@@ -203,7 +203,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 }
             }
         } catch (Exception e) {
-            log.warn("LS WebSocket 메시지 파싱 실패: {}", message.getPayload());
+            log.warn("LS WebSocket 메시지 파싱 실패: {}", e.getMessage());
         }
     }
 

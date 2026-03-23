@@ -25,7 +25,7 @@ public class StockAutoSubscriber {
         log.info("자동 구독 시작: 총 {}개 종목", codes.size());
         codes.stream()
                 .limit(200)
-                .forEach(lsWebSocketClient::addSubscribedCode);
-        log.info("자동 구독 등록 완료 (WebSocket 연결 시 구독 시작)");
+                .forEach(lsWebSocketClient::subscribe);
+        log.info("자동 구독 등록 완료: {}개 종목", Math.min(codes.size(), 200));
     }
 }

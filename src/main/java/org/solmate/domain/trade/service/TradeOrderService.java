@@ -1,5 +1,7 @@
 package org.solmate.domain.trade.service;
 
+import java.util.Set;
+
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.account.entity.Account;
@@ -12,11 +14,17 @@ import org.solmate.domain.trade.repository.HoldingsRepository;
 import org.solmate.domain.trade.repository.TradeDiaryRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -26,6 +34,8 @@ public class TradeOrderService {
     private final TradeDiaryRepository tradeDiaryRepository;
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public void cancelOrder(Long userId, Long orderId) {
@@ -66,5 +76,28 @@ public class TradeOrderService {
 
         // 해당 주문에 연결된 매매일지 삭제
         tradeDiaryRepository.deleteByTradeHistoryId(orderId);
+
+        // Redis ZSet에서 해당 주문 제거
+        removeOrderFromRedis(tradeHistory);
+    }
+
+    private void removeOrderFromRedis(TradeHistory tradeHistory) {
+        String type = tradeHistory.getTradeType() == TradeType.BUY ? "buy" : "sell";
+        String key = "orders:" + type + ":" + tradeHistory.getStock().getTickerCode();
+
+        Set<String> orders = redisTemplate.opsForZSet().range(key, 0, -1);
+        if (orders == null) return;
+
+        for (String json : orders) {
+            try {
+                JsonNode node = objectMapper.readTree(json);
+                if (node.get("orderId").asLong() == tradeHistory.getId()) {
+                    redisTemplate.opsForZSet().remove(key, json);
+                    return;
+                }
+            } catch (Exception e) {
+                log.error("Redis 주문 제거 실패 - orderId: {}", tradeHistory.getId(), e);
+            }
+        }
     }
 }

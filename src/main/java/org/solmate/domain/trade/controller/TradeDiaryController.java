@@ -4,13 +4,16 @@ import java.util.List;
 
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.trade.dto.request.UpdateTradeDiaryRequest;
 import org.solmate.domain.trade.dto.response.TradeDiaryDetailResponse;
 import org.solmate.domain.trade.dto.response.TradeDiaryListResponse;
 import org.solmate.domain.trade.service.TradeDiaryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,5 +46,16 @@ public class TradeDiaryController {
             Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return ApiResponse.success(SuccessStatus.SUCCESS_200, tradeDiaryService.getDiaryDetail(diaryId, userId));
+    }
+
+    @Operation(summary = "매매일지 수정", description = "매매일지 내용을 수정합니다.")
+    @PatchMapping("/{diaryId}")
+    public ResponseEntity<ApiResponse<Void>> updateDiary(
+            @PathVariable Long diaryId,
+            Authentication authentication,
+            @RequestBody UpdateTradeDiaryRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
+        tradeDiaryService.updateDiary(diaryId, userId, request);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, null);
     }
 }

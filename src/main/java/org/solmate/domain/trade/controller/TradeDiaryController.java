@@ -39,7 +39,7 @@ public class TradeDiaryController {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, tradeDiaryService.getMyDiaries(userId, stockName));
     }
 
-    @Operation(summary = "특정 유저 매매일지 목록 조회", description = "특정 유저의 매매일지 목록을 조회합니다. 멘토/멘티 관계일 경우 댓글 수 포함.")
+    @Operation(summary = "유저 프로필 매매일지 목록 조회 - 멘토/멘티 탭에서 호출 가능", description = "특정 유저의 매매일지 목록을 조회합니다. 멘토/멘티 관계일 경우 댓글 수 포함.")
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<List<TradeDiaryListResponse>>> getUserDiaries(
             @PathVariable Long userId,

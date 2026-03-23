@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.social.enums.MentoringStatus;
 import org.solmate.domain.social.repository.CommentRepository;
 import org.solmate.domain.social.repository.MentoringRepository;
 import org.solmate.domain.trade.dto.response.TradeDiaryDetailResponse;
@@ -37,6 +38,21 @@ public class TradeDiaryService {
     public TradeDiaryDetailResponse getDiaryDetail(Long diaryId, Long currentUserId) {
         var diary = tradeDiaryRepository.findById(diaryId)
             .orElseThrow(() -> new GeneralException(ErrorStatus.TRADE_DIARY_NOT_FOUND));
+
+        Long diaryOwnerId = diary.getUser().getId();
+
+        // 내 매매일지가 아닌 경우 멘토/멘티 관계 확인
+        if (!diaryOwnerId.equals(currentUserId)) {
+            boolean isMentoringRelation =
+                // 내가 일지 주인의 멘토인 경우
+                mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(currentUserId, diaryOwnerId, MentoringStatus.ACCEPTED)
+                // 내가 일지 주인의 멘티인 경우
+                || mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(diaryOwnerId, currentUserId, MentoringStatus.ACCEPTED);
+
+            if (!isMentoringRelation) {
+                throw new GeneralException(ErrorStatus.FORBIDDEN);
+            }
+        }
 
         var comments = commentRepository.findAllByTradeDiaryIdAndIsDeletedFalseOrderByCreatedAtAsc(diaryId);
 

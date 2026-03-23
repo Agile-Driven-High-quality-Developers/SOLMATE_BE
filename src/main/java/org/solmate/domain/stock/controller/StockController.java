@@ -9,7 +9,6 @@ import org.solmate.domain.stock.dto.response.StockListResponse;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.CandleService;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
-import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.OrderBookService;
 import org.solmate.domain.stock.service.StockService;
 import org.solmate.external.ls.websocket.LsWebSocketClient;

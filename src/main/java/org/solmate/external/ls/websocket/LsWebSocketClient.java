@@ -116,13 +116,13 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     // 재연결 후 기존 구독 종목 전체 재구독
     private void resubscribeAll() {
         if (subscribedCodes.isEmpty()) return;
-        log.info("LS WebSocket 재구독 시작: {}개 종목", subscribedCodes.size());
+        log.debug("LS WebSocket 재구독 시작: {}개 종목", subscribedCodes.size());
         String token = lsTokenService.getToken();
         subscribedCodes.forEach(code -> {
             sendMessage(LsWsRequest.subscribe(token, code));
             sendMessage(LsWsRequest.subscribeOrderBook(token, code));
         });
-        log.info("LS WebSocket 재구독 완료: {}개 종목 - {}", subscribedCodes.size(), subscribedCodes);
+        log.debug("LS WebSocket 재구독 완료: {}개 종목 - {}", subscribedCodes.size(), subscribedCodes);
     }
 
     // LS WebSocket에 종목 실시간 체결 구독 요청
@@ -141,7 +141,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         sendMessage(LsWsRequest.unsubscribe(token, stockCode));
         sendMessage(LsWsRequest.unsubscribeOrderBook(token, stockCode));
         subscribedCodes.remove(stockCode);
-        log.info("LS WebSocket 구독 해제: {}", stockCode);
+        log.debug("LS WebSocket 구독 해제: {}", stockCode);
     }
 
     // LS WebSocket 세션으로 JSON 메시지 전송

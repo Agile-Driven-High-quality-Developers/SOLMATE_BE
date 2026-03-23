@@ -85,7 +85,7 @@ public class MarketIndicatorService {
         try {
             String json = stringRedisTemplate.opsForValue().get(redisKey);
             if (json == null) {
-                log.warn("Redis에 데이터 없음 - {}", redisKey);
+                log.debug("Redis에 데이터 없음 - {}", redisKey);
                 return null;
             }
 

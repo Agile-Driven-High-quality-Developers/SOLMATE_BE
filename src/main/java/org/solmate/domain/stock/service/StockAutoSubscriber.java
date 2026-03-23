@@ -22,6 +22,7 @@ public class StockAutoSubscriber {
     @EventListener(ApplicationReadyEvent.class)
     public void autoSubscribe() {
         List<String> codes = stockRepository.findAllTickerCodes();
+
         log.info("자동 구독 시작: 총 {}개 종목", codes.size());
 
         List<String> targets = codes.stream().limit(200).toList();

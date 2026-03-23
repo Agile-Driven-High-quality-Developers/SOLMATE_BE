@@ -53,6 +53,7 @@ public enum ErrorStatus implements BaseStatus {
     STOCK_NOT_FOUND("TRADE_404_2", HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
     INSUFFICIENT_HOLDINGS("TRADE_400_2", HttpStatus.BAD_REQUEST, "보유 수량이 부족합니다."),
     STOCK_PRICE_NOT_FOUND("TRADE_404_3", HttpStatus.NOT_FOUND, "Redis에 해당 종목 시세가 없습니다."),
+    TRADE_DIARY_NOT_FOUND("TRADE_404_4", HttpStatus.NOT_FOUND, "매매일지를 찾을 수 없습니다."),
 
     /**
      * Mentoring

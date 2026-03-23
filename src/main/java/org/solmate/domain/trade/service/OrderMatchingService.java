@@ -2,6 +2,7 @@ package org.solmate.domain.trade.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -181,15 +182,32 @@ public class OrderMatchingService {
     // 체결 알림 저장
     private void saveNotification(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
         String stockName = tradeHistory.getStock().getStockName();
+        String ticker = tradeHistory.getStock().getTickerCode();
+        String side = tradeHistory.getTradeType() == TradeType.BUY ? "BUY" : "SELL";
         String tradeTypeStr = tradeHistory.getTradeType() == TradeType.BUY ? "매수" : "매도";
         String content = String.format("[%s] %s %s주가 %s원에 체결되었습니다.",
             stockName, tradeTypeStr, quantity.toPlainString(), currentPrice.toPlainString());
+
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(Map.of(
+                "orderId", tradeHistory.getId(),
+                "stockCode", ticker,
+                "stockName", stockName,
+                "side", side,
+                "filledPrice", currentPrice,
+                "filledQuantity", quantity
+            ));
+        } catch (Exception e) {
+            payload = null;
+        }
 
         Notification notification = Notification.builder()
             .user(user)
             .notificationType(NotificationType.TRADE)
             .category(NotificationCategory.TRADING)
             .content(content)
+            .payload(payload)
             .build();
 
         notificationRepository.save(notification);

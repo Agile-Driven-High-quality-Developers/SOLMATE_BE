@@ -129,7 +129,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
         sendMessage(LsWsRequest.subscribe(token, stockCode));
         sendMessage(LsWsRequest.subscribeOrderBook(token, stockCode));
         subscribedCodes.add(stockCode);
-        log.info("LS WebSocket 구독: {}", stockCode);
+        log.debug("LS WebSocket 구독: {}", stockCode);
     }
 
     public void unsubscribe(String stockCode) {

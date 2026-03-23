@@ -46,6 +46,7 @@ public class Notification extends BaseEntity {
     private boolean isRead = false;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String payload;
 
     @Column(name = "act_url")

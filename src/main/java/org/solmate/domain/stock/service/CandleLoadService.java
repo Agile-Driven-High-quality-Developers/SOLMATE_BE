@@ -1,19 +1,22 @@
 package org.solmate.domain.stock.service;
 
+import java.io.StringReader;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.sql.DataSource;
+
+import org.postgresql.copy.CopyManager;
+import org.postgresql.core.BaseConnection;
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.solmate.domain.stock.entity.MinuteCandle;
-import org.solmate.domain.stock.repository.DailyCandleRepository;
-import org.solmate.domain.stock.repository.MinuteCandleRepository;
 import org.solmate.external.ls.client.LsApiClient;
 import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -28,8 +31,7 @@ public class CandleLoadService {
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final LsApiClient lsApiClient;
-    private final MinuteCandleRepository minuteCandleRepository;
-    private final DailyCandleRepository dailyCandleRepository;
+    private final DataSource dataSource;
 
     /**
      * 1분봉 과거 데이터 적재
@@ -37,8 +39,7 @@ public class CandleLoadService {
      * - 연속조회로 전체 데이터 수집
      * - 호출 후 200ms 대기 (LS API 초당 1건 rate limit 준수)
      */
-    public void loadMinuteCandles(String stockCode, String sdate, String edate) {
-        log.info("[분봉 적재 시작] stockCode={}, {}~{}", stockCode, sdate, edate);
+    public boolean loadMinuteCandles(String stockCode, String sdate, String edate) {
         List<MinuteCandle> candles = new ArrayList<>();
 
         try {
@@ -46,7 +47,7 @@ public class CandleLoadService {
             collectMinuteCandles(response, stockCode, candles);
 
             while (response.hasNext()) {
-                sleep(); // 연속조회 사이에도 rate limit 준수
+                sleep();
                 String ctsDate = response.t8412OutBlock().cts_date();
                 String ctsTime = response.t8412OutBlock().cts_time();
                 response = lsApiClient.getMinuteCandlesContinue(stockCode, sdate, edate, ctsDate, ctsTime);
@@ -54,9 +55,11 @@ public class CandleLoadService {
             }
 
             saveMinuteCandles(candles, stockCode);
-            sleep(); // 다음 종목 호출 전 대기
+            sleep();
+            return true;
         } catch (Exception e) {
-            log.error("[분봉 적재 실패] stockCode={}", stockCode, e);
+            log.error("  ✗ [분봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
+            return false;
         }
     }
 
@@ -66,8 +69,7 @@ public class CandleLoadService {
      * - 연속조회로 전체 데이터 수집
      * - 호출 후 200ms 대기 (LS API 초당 1건 rate limit 준수)
      */
-    public void loadDailyCandles(String stockCode, String sdate, String edate) {
-        log.info("[일봉 적재 시작] stockCode={}, {}~{}", stockCode, sdate, edate);
+    public boolean loadDailyCandles(String stockCode, String sdate, String edate) {
         List<DailyCandle> candles = new ArrayList<>();
 
         try {
@@ -75,23 +77,25 @@ public class CandleLoadService {
             collectDailyCandles(response, stockCode, candles);
 
             while (response.hasNext()) {
-                sleep(); // 연속조회 사이에도 rate limit 준수
+                sleep();
                 String ctsDate = response.t8410OutBlock().cts_date();
                 response = lsApiClient.getDailyCandlesContinue(stockCode, sdate, edate, ctsDate);
                 collectDailyCandles(response, stockCode, candles);
             }
 
             saveDailyCandles(candles, stockCode);
-            sleep(); // 다음 종목 호출 전 대기
+            sleep();
+            return true;
         } catch (Exception e) {
-            log.error("[일봉 적재 실패] stockCode={}", stockCode, e);
+            log.error("  ✗ [일봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
+            return false;
         }
     }
 
-    /** LS API 초당 1건 rate limit 준수를 위한 대기 (200ms = 초당 최대 5건) */
+    /** LS API rate limit 준수를 위한 대기 (2000ms, WebSocket 호출과 합산 고려) */
     private void sleep() {
         try {
-            Thread.sleep(200);
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -145,29 +149,68 @@ public class CandleLoadService {
         }
     }
 
+    private static final DateTimeFormatter COPY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private void saveMinuteCandles(List<MinuteCandle> candles, String stockCode) {
-        int saved = 0;
-        for (MinuteCandle candle : candles) {
-            try {
-                minuteCandleRepository.save(candle);
-                saved++;
-            } catch (DataIntegrityViolationException e) {
-                // unique constraint 위반 = 이미 존재하는 데이터 → 스킵
+        if (candles.isEmpty()) return;
+        try {
+            StringBuilder csv = new StringBuilder();
+            for (MinuteCandle c : candles) {
+                csv.append(c.getStockCode()).append(',')
+                   .append(c.getOpenPrice()).append(',')
+                   .append(c.getHighPrice()).append(',')
+                   .append(c.getLowPrice()).append(',')
+                   .append(c.getClosePrice()).append(',')
+                   .append(c.getVolume()).append(',')
+                   .append(c.getCandleTime().format(COPY_FMT)).append('\n');
             }
+            bulkCopy("minute_candle", csv.toString());
+            log.info("  ✓ [분봉] stockCode={}, {}건 적재 완료", stockCode, candles.size());
+        } catch (Exception e) {
+            log.error("  ✗ [분봉 저장 실패] stockCode={} - {}", stockCode, e.getMessage());
         }
-        log.info("[분봉 적재 완료] stockCode={}, {}건 저장 (총 {}건 중)", stockCode, saved, candles.size());
     }
 
     private void saveDailyCandles(List<DailyCandle> candles, String stockCode) {
-        int saved = 0;
-        for (DailyCandle candle : candles) {
-            try {
-                dailyCandleRepository.save(candle);
-                saved++;
-            } catch (DataIntegrityViolationException e) {
-                // unique constraint 위반 = 이미 존재하는 데이터 → 스킵
+        if (candles.isEmpty()) return;
+        try {
+            StringBuilder csv = new StringBuilder();
+            for (DailyCandle c : candles) {
+                csv.append(c.getStockCode()).append(',')
+                   .append(c.getOpenPrice()).append(',')
+                   .append(c.getHighPrice()).append(',')
+                   .append(c.getLowPrice()).append(',')
+                   .append(c.getClosePrice()).append(',')
+                   .append(c.getVolume()).append(',')
+                   .append(c.getCandleTime().format(COPY_FMT)).append('\n');
             }
+            bulkCopy("daily_candle", csv.toString());
+            log.info("  ✓ [일봉] stockCode={}, {}건 적재 완료", stockCode, candles.size());
+        } catch (Exception e) {
+            log.error("  ✗ [일봉 저장 실패] stockCode={} - {}", stockCode, e.getMessage());
         }
-        log.info("[일봉 적재 완료] stockCode={}, {}건 저장 (총 {}건 중)", stockCode, saved, candles.size());
+    }
+
+    private void bulkCopy(String table, String csv) throws Exception {
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false);
+            String cols = "stock_code, open_price, high_price, low_price, close_price, volume, candle_time";
+            conn.createStatement().execute(
+                "CREATE TEMP TABLE tmp_" + table + " " +
+                "(stock_code varchar(12), open_price bigint, high_price bigint, " +
+                " low_price bigint, close_price bigint, volume bigint, candle_time timestamp) " +
+                "ON COMMIT DROP"
+            );
+            CopyManager copyManager = new CopyManager(conn.unwrap(BaseConnection.class));
+            copyManager.copyIn(
+                "COPY tmp_" + table + " (" + cols + ") FROM STDIN WITH (FORMAT csv)",
+                new StringReader(csv)
+            );
+            conn.createStatement().execute(
+                "INSERT INTO " + table + " (" + cols + ") " +
+                "SELECT " + cols + " FROM tmp_" + table + " ON CONFLICT DO NOTHING"
+            );
+            conn.commit();
+        }
     }
 }

@@ -10,6 +10,7 @@ import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.domain.stock.service.CandleLoadService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,18 +44,68 @@ public class CandleLoadController {
             @RequestParam(defaultValue = "3650") int dailyDays
     ) {
         List<String> codes = stockRepository.findAllTickerCodes();
-        log.info("[캔들 일괄 적재 요청] 종목 수={}, 분봉={}일, 일봉={}일", codes.size(), minuteDays, dailyDays);
+        int total = codes.size();
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 시작] 종목={}개, 분봉={}일, 일봉={}일", total, minuteDays, dailyDays);
+        log.info("└─────────────────────────────────────────────");
 
         String today      = LocalDate.now().format(DATE_FMT);
         String minuteFrom = LocalDate.now().minusDays(minuteDays).format(DATE_FMT);
         String dailyFrom  = LocalDate.now().minusDays(dailyDays).format(DATE_FMT);
 
-        for (String code : codes) {
-            candleLoadService.loadMinuteCandles(code, minuteFrom, today);
-            candleLoadService.loadDailyCandles(code, dailyFrom, today);
+        int minuteSuccess = 0, minuteFail = 0, dailySuccess = 0, dailyFail = 0;
+
+        for (int i = 0; i < codes.size(); i++) {
+            String code = codes.get(i);
+            log.info("[{}/{}] 적재 중: {}", i + 1, total, code);
+            if (candleLoadService.loadMinuteCandles(code, minuteFrom, today)) minuteSuccess++;
+            else minuteFail++;
+            if (candleLoadService.loadDailyCandles(code, dailyFrom, today)) dailySuccess++;
+            else dailyFail++;
         }
 
-        log.info("[캔들 일괄 적재 완료]");
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
+        return ApiResponse.success(SuccessStatus.SUCCESS_200);
+    }
+
+    @Operation(
+            summary = "특정 종목 캔들 재적재",
+            description = "실패한 종목 코드 목록을 받아 분봉/일봉을 재시도합니다."
+    )
+    @PostMapping("/retry")
+    public ResponseEntity<ApiResponse<Void>> retry(
+            @RequestBody List<String> stockCodes,
+            @RequestParam(defaultValue = "30") int minuteDays,
+            @RequestParam(defaultValue = "3650") int dailyDays
+    ) {
+        String today      = LocalDate.now().format(DATE_FMT);
+        String minuteFrom = LocalDate.now().minusDays(minuteDays).format(DATE_FMT);
+        String dailyFrom  = LocalDate.now().minusDays(dailyDays).format(DATE_FMT);
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 시작] 종목={}개", stockCodes.size());
+        log.info("└─────────────────────────────────────────────");
+
+        int minuteSuccess = 0, minuteFail = 0, dailySuccess = 0, dailyFail = 0;
+
+        for (int i = 0; i < stockCodes.size(); i++) {
+            String code = stockCodes.get(i);
+            log.info("[{}/{}] 재적재 중: {}", i + 1, stockCodes.size(), code);
+            if (candleLoadService.loadMinuteCandles(code, minuteFrom, today)) minuteSuccess++;
+            else minuteFail++;
+            if (candleLoadService.loadDailyCandles(code, dailyFrom, today)) dailySuccess++;
+            else dailyFail++;
+        }
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
         return ApiResponse.success(SuccessStatus.SUCCESS_200);
     }
 }

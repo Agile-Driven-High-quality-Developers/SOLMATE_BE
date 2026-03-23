@@ -10,5 +10,4 @@ public interface DailyCandleRepository extends JpaRepository<DailyCandle, Long> 
 
     List<DailyCandle> findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(
             String stockCode, LocalDateTime from, LocalDateTime to);
-
 }

@@ -1,7 +1,10 @@
 package org.solmate.domain.market.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.solmate.common.response.ApiResponse;
+import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.market.dto.response.MarketIndicatorResponse;
 import org.solmate.domain.market.service.MarketIndicatorService;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +20,9 @@ public class MarketIndicatorController {
 
     private final MarketIndicatorService marketIndicatorService;
 
+    @Operation(summary = "시장 지표 조회 (KOSPI, KOSDAQ, USD/KRW)")
     @GetMapping("/market-indicators")
-    public ResponseEntity<MarketIndicatorResponse> getMarketIndicators() {
-        return ResponseEntity.ok(marketIndicatorService.getMarketIndicators());
+    public ResponseEntity<ApiResponse<MarketIndicatorResponse>> getMarketIndicators() {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, marketIndicatorService.getMarketIndicators());
     }
 }

@@ -52,7 +52,24 @@ public enum ErrorStatus implements BaseStatus {
     INSUFFICIENT_CASH("TRADE_400_1", HttpStatus.BAD_REQUEST, "잔액이 부족합니다."),
     STOCK_NOT_FOUND("TRADE_404_2", HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
     INSUFFICIENT_HOLDINGS("TRADE_400_2", HttpStatus.BAD_REQUEST, "보유 수량이 부족합니다."),
-    STOCK_PRICE_NOT_FOUND("TRADE_404_3", HttpStatus.NOT_FOUND, "Redis에 해당 종목 시세가 없습니다.");
+    STOCK_PRICE_NOT_FOUND("TRADE_404_3", HttpStatus.NOT_FOUND, "Redis에 해당 종목 시세가 없습니다."),
+
+    /**
+     * Mentoring
+     */
+    /**
+     * Notification
+     */
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_404", HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
+    NOTIFICATION_UNAUTHORIZED("NOTIFICATION_403", HttpStatus.FORBIDDEN, "해당 알림에 대한 권한이 없습니다."),
+    NOTIFICATION_INVALID_TYPE("NOTIFICATION_400", HttpStatus.BAD_REQUEST, "해당 알림에서 수행할 수 없는 작업입니다."),
+
+    MENTORING_SELF_REQUEST("MENTORING_400_1", HttpStatus.BAD_REQUEST, "자기 자신에게 멘토링을 신청할 수 없습니다."),
+    MENTORING_ALREADY_HAS_MENTOR("MENTORING_400_2", HttpStatus.BAD_REQUEST, "이미 멘토가 있습니다."),
+    MENTORING_ALREADY_REQUESTED("MENTORING_409", HttpStatus.CONFLICT, "이미 멘토링 요청을 보냈습니다."),
+    MENTORING_RELATION_NOT_FOUND("MENTORING_404", HttpStatus.NOT_FOUND, "멘토링 요청을 찾을 수 없습니다."),
+    MENTORING_UNAUTHORIZED("MENTORING_403", HttpStatus.FORBIDDEN, "해당 멘토링 요청에 대한 권한이 없습니다."),
+    MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

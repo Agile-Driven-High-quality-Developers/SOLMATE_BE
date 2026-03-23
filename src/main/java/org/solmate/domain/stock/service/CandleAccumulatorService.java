@@ -164,7 +164,7 @@ public class CandleAccumulatorService {
 
             minuteCandleRepository.save(candle);
             redisTemplate.delete(key);
-            log.info("1분봉 저장 완료: {} {}", stockCode, candleTime);
+            log.debug("1분봉 저장 완료: {} {}", stockCode, candleTime);
         } catch (Exception e) {
             log.error("1분봉 저장 실패: {}", stockCode, e);
         }

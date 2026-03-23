@@ -2,6 +2,7 @@ package org.solmate.domain.trade.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -15,7 +16,10 @@ import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
+import org.solmate.domain.trade.entity.TradeDiary;
+import org.solmate.domain.trade.enums.TradeDiaryStatus;
 import org.solmate.domain.trade.repository.HoldingsRepository;
+import org.solmate.domain.trade.repository.TradeDiaryRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
@@ -35,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderMatchingService {
 
     private final TradeHistoryRepository tradeHistoryRepository;
+    private final TradeDiaryRepository tradeDiaryRepository;
     private final HoldingsRepository holdingsRepository;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
@@ -102,6 +107,10 @@ public class OrderMatchingService {
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
 
+                    // TradeDiary 상태 업데이트
+                    tradeDiaryRepository.findByTradeHistoryId(orderId)
+                        .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
+
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
@@ -159,6 +168,10 @@ public class OrderMatchingService {
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
 
+                    // TradeDiary 상태 업데이트
+                    tradeDiaryRepository.findByTradeHistoryId(orderId)
+                        .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
+
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
@@ -181,15 +194,32 @@ public class OrderMatchingService {
     // 체결 알림 저장
     private void saveNotification(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
         String stockName = tradeHistory.getStock().getStockName();
+        String ticker = tradeHistory.getStock().getTickerCode();
+        String side = tradeHistory.getTradeType() == TradeType.BUY ? "BUY" : "SELL";
         String tradeTypeStr = tradeHistory.getTradeType() == TradeType.BUY ? "매수" : "매도";
         String content = String.format("[%s] %s %s주가 %s원에 체결되었습니다.",
             stockName, tradeTypeStr, quantity.toPlainString(), currentPrice.toPlainString());
+
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(Map.of(
+                "orderId", tradeHistory.getId(),
+                "stockCode", ticker,
+                "stockName", stockName,
+                "side", side,
+                "filledPrice", currentPrice,
+                "filledQuantity", quantity
+            ));
+        } catch (Exception e) {
+            payload = null;
+        }
 
         Notification notification = Notification.builder()
             .user(user)
             .notificationType(NotificationType.TRADE)
             .category(NotificationCategory.TRADING)
             .content(content)
+            .payload(payload)
             .build();
 
         notificationRepository.save(notification);

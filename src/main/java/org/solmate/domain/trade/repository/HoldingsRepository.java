@@ -22,4 +22,7 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long> {
     Optional<Holdings> findByUserAndTickerCodeWithLock(@Param("user") User user, @Param("tickerCode") String tickerCode);
 
     List<Holdings> findByUser(User user);
+
+    @Query("SELECT h FROM Holdings h JOIN FETCH h.stock WHERE h.user.id = :userId")
+    List<Holdings> findByUserId(@Param("userId") Long userId);
 }

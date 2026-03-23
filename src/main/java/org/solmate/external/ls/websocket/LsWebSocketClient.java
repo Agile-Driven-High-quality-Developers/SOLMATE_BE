@@ -149,7 +149,6 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 return;
             }
             String json = objectMapper.writeValueAsString(request);
-            log.info("LS WebSocket 전송: {}", json);
             session.sendMessage(new TextMessage(json));
         } catch (IOException e) {
             log.error("LS WebSocket 메시지 전송 실패", e);
@@ -161,8 +160,6 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             String payload = message.getPayload();
-            log.info("LS WebSocket 수신: {}", payload);
-
             JsonNode node = objectMapper.readTree(payload);
             JsonNode headerNode = node.get("header");
             if (headerNode == null || node.get("body") == null || node.get("body").isNull()) return;

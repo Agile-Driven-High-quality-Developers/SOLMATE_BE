@@ -50,6 +50,10 @@ public class TradeDiary extends BaseEntity {
         this.status = status;
     }
 
+    public void updateContent(String content) {
+        this.content = content;
+    }
+
     @Builder
     public TradeDiary(User user, TradeHistory tradeHistory, String content, TradeDiaryStatus status) {
         this.user = user;

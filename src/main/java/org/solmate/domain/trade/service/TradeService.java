@@ -146,7 +146,6 @@ public class TradeService {
         holdings.subtractQuantity(request.quantity());
 
         // TradeHistory 저장
-        // avgPriceSnapshot: 매도 시점의 평균단가 스냅샷 저장 (이후 추가 매수 시 avgPrice가 바뀌어도 수익 계산 가능)
         TradeHistory tradeHistory = TradeHistory.builder()
             .user(user)
             .stock(stock)
@@ -155,7 +154,6 @@ public class TradeService {
             .tradeType(TradeType.SELL)
             .tradeStatus(TradeStatus.PENDING)
             .orderType(request.orderType())
-            .avgPriceSnapshot(holdings.getAvgPrice())
             .build();
         tradeHistoryRepository.saveAndFlush(tradeHistory);
 

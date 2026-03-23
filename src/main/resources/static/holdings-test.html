@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>보유 종목 실시간</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        input, button { padding: 8px; margin: 4px; font-size: 14px; }
+        h3 { color: #aaffaa; border-bottom: 1px solid #333; padding-bottom: 6px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; font-size: 13px; }
+        th { background: #333; color: #aaffaa; padding: 8px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #333; }
+        .plus { color: #ff6666; }
+        .minus { color: #6699ff; }
+        #status { margin: 8px 0; }
+        img { width: 30px; height: 30px; border-radius: 50%; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <h2>📦 보유 종목 실시간</h2>
+    <input id="token" type="text" placeholder="JWT 토큰 입력" style="width: 400px;" />
+    <input id="targetUserId" type="text" placeholder="타인 userId (비우면 내 것)" style="width: 200px;" />
+    <button onclick="start()">실시간 시작</button>
+    <button onclick="stop()">중지</button>
+    <div id="status">대기 중...</div>
+
+    <h3>보유 종목 목록</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>로고</th>
+                <th>종목명</th>
+                <th>종목코드</th>
+                <th>수량</th>
+                <th>평균단가</th>
+                <th>현재가</th>
+                <th>평가금액</th>
+                <th>수익률</th>
+                <th>수익금</th>
+            </tr>
+        </thead>
+        <tbody id="holdings-body"></tbody>
+    </table>
+
+    <script>
+        let stompClient = null;
+        let subs = [];
+        let holdings = {}; // ticker -> { avgPrice, quantity, stockName, stockLogo, currentPrice }
+
+        async function start() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) { document.getElementById('status').innerText = '❌ 토큰을 입력하세요.'; return; }
+
+            // 1. REST API로 초기 보유 종목 로드
+            const targetUserId = document.getElementById('targetUserId').value.trim();
+            const url = targetUserId
+                ? `http://localhost:8080/api/holdings/${targetUserId}`
+                : 'http://localhost:8080/api/holdings';
+            const res = await fetch(url, {
+                headers: { 'Authorization': 'Bearer ' + token },
+                cache: 'no-store'
+            });
+            const json = await res.json();
+            if (!json.isSuccess) { document.getElementById('status').innerText = '❌ ' + json.message; return; }
+
+            holdings = {};
+            json.data.forEach(h => {
+                holdings[h.tickerCode] = {
+                    avgPrice: h.avgPrice,
+                    quantity: h.quantity,
+                    stockName: h.stockName,
+                    stockLogo: h.stockLogo,
+                    currentPrice: h.currentPrice
+                };
+            });
+            renderAll();
+
+            // 2. STOMP 연결 (ws-test.html 방식 동일)
+            stop();
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null;
+
+            stompClient.connect({}, function () {
+                document.getElementById('status').innerText = '🔴 실시간 연결됨 | 종목 수: ' + Object.keys(holdings).length;
+
+                Object.keys(holdings).forEach(ticker => {
+                    const sub = stompClient.subscribe('/topic/stocks/' + ticker + '/quote', function (msg) {
+                        const data = JSON.parse(msg.body);
+                        holdings[ticker].currentPrice = data.currentPrice;
+                        updateRow(ticker);
+                    });
+                    subs.push(sub);
+                });
+            }, function (err) {
+                document.getElementById('status').innerText = '❌ 연결 실패: ' + err;
+            });
+        }
+
+        function stop() {
+            subs.forEach(s => s.unsubscribe());
+            subs = [];
+            if (stompClient) { stompClient.disconnect(); stompClient = null; }
+            document.getElementById('status').innerText = '⏹ 중지됨';
+        }
+
+        function renderAll() {
+            const tbody = document.getElementById('holdings-body');
+            tbody.innerHTML = '';
+            Object.keys(holdings).forEach(ticker => {
+                const tr = document.createElement('tr');
+                tr.id = 'row-' + ticker;
+                tbody.appendChild(tr);
+                updateRow(ticker);
+            });
+        }
+
+        function updateRow(ticker) {
+            const h = holdings[ticker];
+            const cur = h.currentPrice;
+            const avg = h.avgPrice;
+            const qty = h.quantity;
+            const evaluation = cur * qty;
+            const returnAmount = (cur - avg) * qty;
+            const returnRate = ((cur - avg) / avg * 100).toFixed(2);
+            const plus = returnAmount >= 0;
+            const cls = plus ? 'plus' : 'minus';
+            const sign = plus ? '+' : '';
+
+            document.getElementById('row-' + ticker).innerHTML = `
+                <td><img src="${h.stockLogo}" onerror="this.style.display='none'" /></td>
+                <td>${h.stockName}</td>
+                <td>${ticker}</td>
+                <td>${qty.toLocaleString()}</td>
+                <td>${avg.toLocaleString()}</td>
+                <td>${cur.toLocaleString()}</td>
+                <td>${evaluation.toLocaleString()}</td>
+                <td class="${cls}">${sign}${returnRate}%</td>
+                <td class="${cls}">${sign}${returnAmount.toLocaleString()}</td>
+            `;
+        }
+    </script>
+</body>
+</html>

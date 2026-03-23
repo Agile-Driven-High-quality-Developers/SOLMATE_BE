@@ -185,11 +185,11 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 LsWsStockResponse response = objectMapper.treeToValue(node, LsWsStockResponse.class);
                 if (response.body() == null) return;
                 String stockCode = response.body().shcode();
-                candleAccumulatorService.accumulate(response.body());
                 stockInfoService.update(response.body());
-                orderMatchingService.match(stockCode);
                 messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
                         StockRealtimeResponse.from(response.body()));
+                candleAccumulatorService.accumulate(response.body());
+                orderMatchingService.match(stockCode);
                 broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
                 broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
                 broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
@@ -221,7 +221,7 @@ public class LsWebSocketClient extends TextWebSocketHandler {
             LocalDateTime candleTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
             messagingTemplate.convertAndSend(topic, CandleResponse.fromRedis(data, candleTime));
         } catch (Exception e) {
-            log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
+            // log.warn("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);
         }
     }
 

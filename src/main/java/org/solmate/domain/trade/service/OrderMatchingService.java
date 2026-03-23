@@ -16,7 +16,10 @@ import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
+import org.solmate.domain.trade.entity.TradeDiary;
+import org.solmate.domain.trade.enums.TradeDiaryStatus;
 import org.solmate.domain.trade.repository.HoldingsRepository;
+import org.solmate.domain.trade.repository.TradeDiaryRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
@@ -36,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderMatchingService {
 
     private final TradeHistoryRepository tradeHistoryRepository;
+    private final TradeDiaryRepository tradeDiaryRepository;
     private final HoldingsRepository holdingsRepository;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
@@ -103,6 +107,10 @@ public class OrderMatchingService {
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
 
+                    // TradeDiary 상태 업데이트
+                    tradeDiaryRepository.findByTradeHistoryId(orderId)
+                        .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
+
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
@@ -159,6 +167,10 @@ public class OrderMatchingService {
 
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
+
+                    // TradeDiary 상태 업데이트
+                    tradeDiaryRepository.findByTradeHistoryId(orderId)
+                        .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
 
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);

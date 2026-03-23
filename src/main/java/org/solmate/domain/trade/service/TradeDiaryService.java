@@ -18,9 +18,12 @@ public class TradeDiaryService {
     private final CommentRepository commentRepository;
 
     @Transactional(readOnly = true)
-    public List<TradeDiaryListResponse> getMyDiaries(Long userId) {
-        return tradeDiaryRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
-            .stream()
+    public List<TradeDiaryListResponse> getMyDiaries(Long userId, String stockName) {
+        var diaries = (stockName != null && !stockName.isBlank())
+            ? tradeDiaryRepository.findAllByUserIdAndStockNameContaining(userId, stockName)
+            : tradeDiaryRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+
+        return diaries.stream()
             .map(diary -> TradeDiaryListResponse.of(diary, commentRepository))
             .toList();
     }

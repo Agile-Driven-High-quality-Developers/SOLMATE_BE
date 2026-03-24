@@ -8,7 +8,9 @@ import org.solmate.domain.social.dto.response.MyMentoringStatusResponse;
 import org.solmate.domain.social.service.MentoringService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,5 +56,20 @@ public class MentoringController {
     ) {
         MentoringResponse response = mentoringService.requestMentoring(menteeId, request.mentorUserId());
         return ApiResponse.success(SuccessStatus.MENTORING_REQUEST_SUCCESS, response);
+    }
+
+    /**
+     * 멘토링 취소 (멘티만 가능)
+     * - PENDING(신청 대기) 또는 ACCEPTED(수락된 관계) 상태 모두 취소 가능
+     * - 멘토가 호출하면 서비스 레이어에서 403 반환
+     */
+    @Operation(summary = "멘토링 취소")
+    @DeleteMapping("/mentor-requests/{relationId}")
+    public ResponseEntity<ApiResponse<Void>> cancelMentoring(
+            @AuthenticationPrincipal Long menteeId,
+            @PathVariable Long relationId
+    ) {
+        mentoringService.cancelMentoring(menteeId, relationId);
+        return ApiResponse.success(SuccessStatus.MENTORING_CANCEL_SUCCESS, null);
     }
 }

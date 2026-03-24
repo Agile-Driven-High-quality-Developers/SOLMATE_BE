@@ -72,7 +72,8 @@ public enum ErrorStatus implements BaseStatus {
     MENTORING_ALREADY_REQUESTED("MENTORING_409", HttpStatus.CONFLICT, "이미 멘토링 요청을 보냈습니다."),
     MENTORING_RELATION_NOT_FOUND("MENTORING_404", HttpStatus.NOT_FOUND, "멘토링 요청을 찾을 수 없습니다."),
     MENTORING_UNAUTHORIZED("MENTORING_403", HttpStatus.FORBIDDEN, "해당 멘토링 요청에 대한 권한이 없습니다."),
-    MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다.");
+    MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다."),
+    MENTORING_NOT_ACCEPTED("MENTORING_400_4", HttpStatus.BAD_REQUEST, "멘토링 관계가 아닙니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

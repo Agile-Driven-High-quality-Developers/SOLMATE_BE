@@ -34,4 +34,9 @@ public interface TradeHistoryRepository extends JpaRepository<TradeHistory, Long
             @Param("userId") Long userId,
             @Param("tickerCode") String tickerCode,
             @Param("tradeType") org.solmate.domain.trade.enums.TradeType tradeType);
+
+    @Query("SELECT t FROM TradeHistory t WHERE t.user.id = :userId AND t.tradeStatus = 'PENDING' AND t.tradeType = :tradeType")
+    List<TradeHistory> findPendingByUserIdAndTradeType(
+            @Param("userId") Long userId,
+            @Param("tradeType") org.solmate.domain.trade.enums.TradeType tradeType);
 }

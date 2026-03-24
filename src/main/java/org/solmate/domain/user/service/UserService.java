@@ -21,30 +21,26 @@ public class UserService {
     private final S3Service s3Service;
     private final PasswordEncoder passwordEncoder;
 
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-    }
 
     public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailAndDeletedAtIsNull(email)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.EMAIL_NOT_FOUND));
     }
 
     public void checkEmailNotDuplicated(String email) {
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
             throw new GeneralException(ErrorStatus.EMAIL_ALREADY_EXISTS);
         }
     }
 
     public void checkNicknameNotDuplicated(String nickname) {
-        if (userRepository.existsByNickname(nickname)) {
+        if (userRepository.existsByNicknameAndDeletedAtIsNull(nickname)) {
             throw new GeneralException(ErrorStatus.NICKNAME_ALREADY_EXISTS);
         }
     }
 
     public void checkPassword(Long userId, String rawPassword) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
@@ -61,33 +57,14 @@ public class UserService {
         user.updateNickname(nickname);
     }
 
-    @Transactional
-    public void withdraw(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-
-        if (user.isWithdrawn()) {
-            throw new GeneralException(ErrorStatus.USER_ALREADY_WITHDRAWN);
-        }
-
-        if (user.getImageUrl() != null) {
-            s3Service.deleteFile(user.getImageUrl());
-        }
-
-        user.withdraw();
-    }
 
     @Transactional
     public void withdrawWithPassword(Long userId, String rawPassword) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
-        }
-
-        if (user.isWithdrawn()) {
-            throw new GeneralException(ErrorStatus.USER_ALREADY_WITHDRAWN);
         }
 
         if (user.getImageUrl() != null) {
@@ -99,7 +76,7 @@ public class UserService {
 
     @Transactional
     public void deleteProfileImage(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         if (user.getImageUrl() != null) {
@@ -110,7 +87,7 @@ public class UserService {
 
     @Transactional
     public void updateProfile(Long userId, MultipartFile image, String nickname) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         if (image != null && !image.isEmpty()) {

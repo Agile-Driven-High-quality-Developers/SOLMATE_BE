@@ -38,6 +38,7 @@ public enum SuccessStatus implements BaseStatus {
     TRADE_HISTORY_SUCCESS("TRADE_200", HttpStatus.OK, "매매내역 조회 성공"),
     PROFILE_UPDATE_SUCCESS("USER_200", HttpStatus.OK, "프로필 업데이트 성공"),
     PROFILE_IMAGE_DELETE_SUCCESS("USER_200", HttpStatus.OK, "프로필 이미지 삭제 성공"),
+    WITHDRAW_SUCCESS("USER_200", HttpStatus.OK, "회원 탈퇴 성공"),
     MENTORING_REQUEST_SUCCESS("MENTORING_201", HttpStatus.CREATED, "멘토링 신청 성공"),
     MENTORING_ACCEPT_SUCCESS("MENTORING_200_1", HttpStatus.OK, "멘토링 수락 성공"),
     MENTORING_REJECT_SUCCESS("MENTORING_200_2", HttpStatus.OK, "멘토링 거절 성공"),

@@ -52,6 +52,22 @@ public class UserService {
     }
 
     @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        if (user.isWithdrawn()) {
+            throw new GeneralException(ErrorStatus.USER_ALREADY_WITHDRAWN);
+        }
+
+        if (user.getImageUrl() != null) {
+            s3Service.deleteFile(user.getImageUrl());
+        }
+
+        user.withdraw();
+    }
+
+    @Transactional
     public void deleteProfileImage(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));

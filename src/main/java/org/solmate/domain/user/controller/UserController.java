@@ -25,6 +25,14 @@ public class UserController {
 
     private final UserService userService;
 
+    @Operation(summary = "회원 탈퇴", description = "회원 탈퇴 처리합니다. (soft delete)")
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Void>> withdraw(
+            @AuthenticationPrincipal Long userId) {
+        userService.withdraw(userId);
+        return ApiResponse.success(SuccessStatus.WITHDRAW_SUCCESS, null);
+    }
+
     @Operation(summary = "프로필 이미지 삭제", description = "프로필 이미지를 삭제하고 기본 이미지로 되돌립니다.")
     @DeleteMapping("/profile-image")
     public ResponseEntity<ApiResponse<Void>> deleteProfileImage(

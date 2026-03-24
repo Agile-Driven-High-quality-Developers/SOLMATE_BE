@@ -5,14 +5,17 @@ import java.util.List;
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.stock.dto.response.CandleResponse;
+import org.solmate.domain.stock.dto.response.StockHoldingResponse;
 import org.solmate.domain.stock.dto.response.StockListResponse;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.service.CandleService;
 import org.solmate.domain.stock.dto.response.StockOrderBookResponse;
 import org.solmate.domain.stock.service.OrderBookService;
 import org.solmate.domain.stock.service.StockService;
+import org.solmate.domain.trade.service.HoldingsService;
 import org.solmate.external.ls.websocket.LsWebSocketClient;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +37,7 @@ public class StockController {
     private final StockService stockService;
     private final CandleService candleService;
     private final OrderBookService orderBookService;
+    private final HoldingsService holdingsService;
     private final LsWebSocketClient lsWebSocketClient;
 
     @Operation(summary = "종목 리스트 조회 (현재가 포함)")
@@ -94,6 +98,14 @@ public class StockController {
             @PathVariable String stockCode,
             @RequestParam(defaultValue = "10") int years) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getYearlyCandles(stockCode, years));
+    }
+
+    @Operation(summary = "종목 보유현황 조회", description = "보유수량/평균매수가/평가금액/수익률 조회. 수익률은 호출 시점 현재가 기준.")
+    @GetMapping("/{stockCode}/holding")
+    public ResponseEntity<ApiResponse<StockHoldingResponse>> getStockHolding(
+            @PathVariable String stockCode,
+            @AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, holdingsService.getStockHolding(userId, stockCode));
     }
 
     @Operation(summary = "주식 실시간 시세 구독")

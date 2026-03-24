@@ -1,5 +1,6 @@
 package org.solmate.domain.trade.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.solmate.common.response.ApiResponse;
@@ -39,5 +40,9 @@ public class HoldingsController {
         return ApiResponse.success(SuccessStatus.HOLDINGS_SUCCESS, holdingsService.getHoldings(userId));
     }
 
-
+    @Operation(summary = "보유 현금 조회", description = "계좌 잔고 + 미체결 매수 주문 금액을 합산한 실제 보유 현금을 조회합니다.")
+    @GetMapping("/cash")
+    public ResponseEntity<ApiResponse<BigDecimal>> getCash(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, holdingsService.getCash(userId));
+    }
 }

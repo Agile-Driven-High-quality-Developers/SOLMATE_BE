@@ -15,6 +15,7 @@ import org.solmate.domain.stock.entity.Stock;
 import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.domain.trade.dto.request.BuyOrderRequest;
 import org.solmate.domain.trade.dto.request.SellOrderRequest;
+import org.solmate.common.s3.S3Service;
 import org.solmate.domain.trade.dto.response.OrderResponse;
 import org.solmate.domain.trade.dto.response.TradeHistoryResponse;
 import org.solmate.domain.trade.entity.Holdings;
@@ -49,6 +50,7 @@ public class TradeService {
     private final TradeHistoryRepository tradeHistoryRepository;
     private final TradeDiaryRepository tradeDiaryRepository;
     private final StringRedisTemplate redisTemplate;
+    private final S3Service s3Service;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -172,6 +174,13 @@ public class TradeService {
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
         return OrderResponse.of(tradeHistory);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TradeHistoryResponse.PortfolioItem> getPortfolioTrades(Long userId) {
+        return tradeHistoryRepository.findFilledByUserId(userId).stream()
+                .map(trade -> TradeHistoryResponse.PortfolioItem.of(trade, s3Service))
+                .toList();
     }
 
     @Transactional(readOnly = true)

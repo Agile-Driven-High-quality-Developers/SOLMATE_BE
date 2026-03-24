@@ -39,4 +39,13 @@ public record CandleResponse(
                 Long.parseLong((String) data.get("volume"))
         );
     }
+
+    /** 1분봉 집계 결과(N분봉) 변환용 */
+    public static CandleResponse ofAggregated(
+            LocalDateTime bucketStart, long open, long high, long low, long close, long volume) {
+        return new CandleResponse(
+                bucketStart.toEpochSecond(KST),
+                open, high, low, close, volume
+        );
+    }
 }

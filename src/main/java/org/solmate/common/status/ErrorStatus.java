@@ -46,6 +46,11 @@ public enum ErrorStatus implements BaseStatus {
     S3_FILE_UPLOAD_FAILED("S3_500", HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
 
     /**
+     * Stock
+     */
+    INVALID_CANDLE_UNIT("STOCK_400_1", HttpStatus.BAD_REQUEST, "unit은 1, 5, 30, 60 중 하나여야 합니다."),
+
+    /**
      * Trade
      */
     ACCOUNT_NOT_FOUND("TRADE_404_1", HttpStatus.NOT_FOUND, "계좌를 찾을 수 없습니다."),

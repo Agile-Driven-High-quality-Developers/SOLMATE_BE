@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,20 @@ public class TradeController {
             @AuthenticationPrincipal Long userId,
             @RequestBody SellOrderRequest request) {
         return ApiResponse.success(SuccessStatus.SELL_ORDER_SUCCESS, tradeService.sellOrder(userId, request));
+    }
+
+    @Operation(summary = "내 매매내역 조회", description = "체결완료된 나의 전체 매매내역을 조회합니다.")
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<TradeHistoryResponse.PortfolioItem>>> getMyPortfolioTrades(
+            @AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(SuccessStatus.TRADE_HISTORY_SUCCESS, tradeService.getPortfolioTrades(userId));
+    }
+
+    @Operation(summary = "타인 매매내역 조회", description = "체결완료된 타인의 전체 매매내역을 조회합니다.")
+    @GetMapping("/history/{userId}")
+    public ResponseEntity<ApiResponse<List<TradeHistoryResponse.PortfolioItem>>> getOtherPortfolioTrades(
+            @PathVariable Long userId) {
+        return ApiResponse.success(SuccessStatus.TRADE_HISTORY_SUCCESS, tradeService.getPortfolioTrades(userId));
     }
 
     @Operation(summary = "종목별 매매내역 리스트 조회")

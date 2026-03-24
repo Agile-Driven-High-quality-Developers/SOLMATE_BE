@@ -155,6 +155,29 @@ public class MentoringService {
     }
 
     /**
+     * 멘토링 취소 (멘티만 가능)
+     * - PENDING(신청 대기 중) 또는 ACCEPTED(수락된 관계) 상태 모두 취소 가능
+     * - relation의 mentee_id가 현재 사용자와 다르면 403 → 멘토가 호출해도 여기서 차단됨
+     */
+    @Transactional
+    public void cancelMentoring(Long menteeId, Long relationId) {
+        MentoringRelation relation = mentoringRepository.findById(relationId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.MENTORING_RELATION_NOT_FOUND));
+
+        // 본인(멘티)의 관계인지 확인 → 멘토가 호출하면 mentee_id != menteeId 이므로 차단
+        if (!relation.getMentee().getId().equals(menteeId)) {
+            throw new GeneralException(ErrorStatus.MENTORING_UNAUTHORIZED);
+        }
+
+        // ACCEPTED 상태(이미 맺어진 멘토-멘티 관계)만 취소 가능
+        if (relation.getStatus() != MentoringStatus.ACCEPTED) {
+            throw new GeneralException(ErrorStatus.MENTORING_NOT_ACCEPTED);
+        }
+
+        mentoringRepository.delete(relation);
+    }
+
+    /**
      * 멘토 신청 거절
      * - NotificationService에서 알림의 payload를 파싱한 후 호출됨
      * - 거절 시 멘티에게 별도 알림은 전송하지 않음

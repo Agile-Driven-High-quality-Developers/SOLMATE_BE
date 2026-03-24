@@ -3,6 +3,7 @@ package org.solmate.domain.user.controller;
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.user.dto.request.PasswordCheckRequest;
+import org.solmate.domain.user.dto.request.WithdrawRequest;
 import org.solmate.domain.user.service.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -39,11 +40,12 @@ public class UserController {
         return ApiResponse.success(SuccessStatus.PASSWORD_CHECK_SUCCESS, null);
     }
 
-    @Operation(summary = "회원 탈퇴", description = "회원 탈퇴 처리합니다. (soft delete)")
+    @Operation(summary = "회원 탈퇴", description = "현재 비밀번호 확인 후 회원 탈퇴 처리합니다. (soft delete)")
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> withdraw(
-            @AuthenticationPrincipal Long userId) {
-        userService.withdraw(userId);
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid WithdrawRequest request) {
+        userService.withdrawWithPassword(userId, request.password());
         return ApiResponse.success(SuccessStatus.WITHDRAW_SUCCESS, null);
     }
 

@@ -78,6 +78,26 @@ public class UserService {
     }
 
     @Transactional
+    public void withdrawWithPassword(Long userId, String rawPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
+        }
+
+        if (user.isWithdrawn()) {
+            throw new GeneralException(ErrorStatus.USER_ALREADY_WITHDRAWN);
+        }
+
+        if (user.getImageUrl() != null) {
+            s3Service.deleteFile(user.getImageUrl());
+        }
+
+        user.withdraw();
+    }
+
+    @Transactional
     public void deleteProfileImage(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));

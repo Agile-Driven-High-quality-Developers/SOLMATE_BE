@@ -5,6 +5,7 @@ import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final S3Service s3Service;
+    private final PasswordEncoder passwordEncoder;
 
     public User getUserById(Long id) {
         return userRepository.findById(id)
@@ -38,6 +40,14 @@ public class UserService {
     public void checkNicknameNotDuplicated(String nickname) {
         if (userRepository.existsByNickname(nickname)) {
             throw new GeneralException(ErrorStatus.NICKNAME_ALREADY_EXISTS);
+        }
+    }
+
+    public void checkPassword(Long userId, String rawPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
         }
     }
 

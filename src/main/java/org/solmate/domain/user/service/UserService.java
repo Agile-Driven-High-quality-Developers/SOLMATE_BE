@@ -52,6 +52,17 @@ public class UserService {
     }
 
     @Transactional
+    public void deleteProfileImage(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        if (user.getImageUrl() != null) {
+            s3Service.deleteFile(user.getImageUrl());
+            user.updateImageUrl(null);
+        }
+    }
+
+    @Transactional
     public void updateProfile(Long userId, MultipartFile image, String nickname) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));

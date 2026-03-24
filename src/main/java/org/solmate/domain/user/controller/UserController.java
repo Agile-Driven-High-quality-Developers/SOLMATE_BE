@@ -6,6 +6,7 @@ import org.solmate.domain.user.service.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -23,6 +24,14 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
 
     private final UserService userService;
+
+    @Operation(summary = "프로필 이미지 삭제", description = "프로필 이미지를 삭제하고 기본 이미지로 되돌립니다.")
+    @DeleteMapping("/profile-image")
+    public ResponseEntity<ApiResponse<Void>> deleteProfileImage(
+            @AuthenticationPrincipal Long userId) {
+        userService.deleteProfileImage(userId);
+        return ApiResponse.success(SuccessStatus.PROFILE_IMAGE_DELETE_SUCCESS, null);
+    }
 
     @Operation(summary = "프로필 업데이트", description = "프로필 이미지와 닉네임을 변경합니다. 각 항목은 선택적으로 전송 가능합니다.")
     @PatchMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

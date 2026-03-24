@@ -52,16 +52,21 @@ public class UserService {
     }
 
     @Transactional
-    public String updateProfileImage(Long userId, MultipartFile image) {
+    public void updateProfile(Long userId, MultipartFile image, String nickname) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        if (user.getImageUrl() != null) {
-            s3Service.deleteFile(user.getImageUrl());
+        if (image != null && !image.isEmpty()) {
+            if (user.getImageUrl() != null) {
+                s3Service.deleteFile(user.getImageUrl());
+            }
+            String imageUrl = s3Service.uploadFile(image, "profile/" + userId);
+            user.updateImageUrl(imageUrl);
         }
 
-        String imageUrl = s3Service.uploadFile(image, "profile/" + userId);
-        user.updateImageUrl(imageUrl);
-        return imageUrl;
+        if (nickname != null && !nickname.isBlank()) {
+            checkNicknameNotDuplicated(nickname);
+            user.updateNickname(nickname);
+        }
     }
 }

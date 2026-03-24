@@ -78,7 +78,14 @@ public enum ErrorStatus implements BaseStatus {
     MENTORING_RELATION_NOT_FOUND("MENTORING_404", HttpStatus.NOT_FOUND, "멘토링 요청을 찾을 수 없습니다."),
     MENTORING_UNAUTHORIZED("MENTORING_403", HttpStatus.FORBIDDEN, "해당 멘토링 요청에 대한 권한이 없습니다."),
     MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다."),
-    MENTORING_NOT_ACCEPTED("MENTORING_400_4", HttpStatus.BAD_REQUEST, "멘토링 관계가 아닙니다.");
+    MENTORING_NOT_ACCEPTED("MENTORING_400_4", HttpStatus.BAD_REQUEST, "멘토링 관계가 아닙니다."),
+
+    /**
+     * Follow
+     */
+    FOLLOW_SELF_REQUEST("FOLLOW_400_1", HttpStatus.BAD_REQUEST, "자기 자신을 팔로우할 수 없습니다."),
+    FOLLOW_ALREADY_FOLLOWED("FOLLOW_409", HttpStatus.CONFLICT, "이미 팔로우한 유저입니다."),
+    FOLLOW_NOT_FOUND("FOLLOW_404", HttpStatus.NOT_FOUND, "팔로우 관계를 찾을 수 없습니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

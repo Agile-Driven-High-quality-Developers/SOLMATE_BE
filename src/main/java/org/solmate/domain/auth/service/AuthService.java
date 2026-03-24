@@ -114,6 +114,13 @@ public class AuthService {
         return jwtProvider.generateAccessToken(userId);
     }
 
+    // 비밀번호 재설정
+    public void resetPassword(String email, String newPassword) {
+        emailVerificationService.isEmailVerified(email);
+        User user = userService.getUserByEmail(email);
+        userService.updatePassword(user, passwordEncoder.encode(newPassword));
+    }
+
     // 로그아웃
     public void logout(String accessToken, String refreshToken, HttpServletResponse response) {
         if (jwtProvider.validateToken(refreshToken)) {

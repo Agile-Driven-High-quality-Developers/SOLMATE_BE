@@ -38,6 +38,19 @@ public class EmailVerificationService {
         emailSender.send(email, verificationCode);
     }
 
+    // 비밀번호 재설정 인증 코드 요청
+    @Transactional
+    public void requestPasswordResetCode(String email) {
+        String verificationCode = createEmailVerificationCode();
+        emailVerificationRepository.findByEmail(email)
+                .ifPresentOrElse(
+                        existing -> updateEmailVerification(existing, verificationCode),
+                        () -> registerEmailVerification(email, verificationCode)
+                );
+
+        emailSender.sendPasswordReset(email, verificationCode);
+    }
+
     // 이메일 인증 코드 확인
     @Transactional
     public void confirmEmailVerificationCode(String email, String code) {

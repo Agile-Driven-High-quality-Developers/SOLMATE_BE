@@ -34,6 +34,7 @@ public enum ErrorStatus implements BaseStatus {
      * User
      */
     USER_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+    USER_ALREADY_WITHDRAWN("USER_400", HttpStatus.BAD_REQUEST, "이미 탈퇴한 유저입니다."),
     EMAIL_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
     EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
     NICKNAME_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),

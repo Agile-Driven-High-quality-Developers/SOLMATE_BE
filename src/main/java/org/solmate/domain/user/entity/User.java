@@ -2,6 +2,8 @@ package org.solmate.domain.user.entity;
 
 import org.solmate.common.base.BaseEntity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -36,6 +38,9 @@ public class User extends BaseEntity {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @Builder
     public User(String email, String password, String nickname, String imageUrl) {
         this.email = email;
@@ -50,6 +55,18 @@ public class User extends BaseEntity {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public void withdraw() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isWithdrawn() {
+        return this.deletedAt != null;
     }
 
 

@@ -34,6 +34,7 @@ public enum ErrorStatus implements BaseStatus {
      * User
      */
     USER_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+    USER_ALREADY_WITHDRAWN("USER_400", HttpStatus.BAD_REQUEST, "이미 탈퇴한 유저입니다."),
     EMAIL_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
     EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
     NICKNAME_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
@@ -59,6 +60,7 @@ public enum ErrorStatus implements BaseStatus {
     INSUFFICIENT_HOLDINGS("TRADE_400_2", HttpStatus.BAD_REQUEST, "보유 수량이 부족합니다."),
     STOCK_PRICE_NOT_FOUND("TRADE_404_3", HttpStatus.NOT_FOUND, "Redis에 해당 종목 시세가 없습니다."),
     TRADE_DIARY_NOT_FOUND("TRADE_404_4", HttpStatus.NOT_FOUND, "매매일지를 찾을 수 없습니다."),
+    COMMENT_NOT_FOUND("TRADE_404_5", HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."),
 
     /**
      * Mentoring
@@ -75,7 +77,8 @@ public enum ErrorStatus implements BaseStatus {
     MENTORING_ALREADY_REQUESTED("MENTORING_409", HttpStatus.CONFLICT, "이미 멘토링 요청을 보냈습니다."),
     MENTORING_RELATION_NOT_FOUND("MENTORING_404", HttpStatus.NOT_FOUND, "멘토링 요청을 찾을 수 없습니다."),
     MENTORING_UNAUTHORIZED("MENTORING_403", HttpStatus.FORBIDDEN, "해당 멘토링 요청에 대한 권한이 없습니다."),
-    MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다.");
+    MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다."),
+    MENTORING_NOT_ACCEPTED("MENTORING_400_4", HttpStatus.BAD_REQUEST, "멘토링 관계가 아닙니다.");
 
     private final String code;
     private final HttpStatus httpStatus;

@@ -7,6 +7,7 @@ import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.auth.dto.request.ConfirmEmailVerificationRequest;
 import org.solmate.domain.auth.dto.request.EmailVerificationRequest;
 import org.solmate.domain.auth.dto.request.LoginRequest;
+import org.solmate.domain.auth.dto.request.PasswordResetRequest;
 import org.solmate.domain.auth.dto.request.SignUpRequest;
 import org.solmate.domain.auth.dto.response.LoginResponse;
 import org.solmate.domain.auth.service.AuthService;
@@ -63,6 +64,24 @@ public class AuthController {
     ) {
         emailVerificationService.confirmEmailVerificationCode(request.email(), request.emailVerificationCode());
         return ApiResponse.success(SuccessStatus.EMAIL_VERIFY_SUCCESS);
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증 메일 발송", description = "비밀번호 재설정을 위한 인증 코드를 이메일로 발송합니다.")
+    @PostMapping("/password/email/send")
+    public ResponseEntity<ApiResponse<Void>> sendPasswordResetEmail(
+            @RequestBody @Valid EmailVerificationRequest request
+    ) {
+        emailVerificationService.requestPasswordResetCode(request.email());
+        return ApiResponse.success(SuccessStatus.EMAIL_SEND_SUCCESS);
+    }
+
+    @Operation(summary = "비밀번호 재설정", description = "이메일 인증 완료 후 새 비밀번호로 변경합니다.")
+    @PostMapping("/password/reset")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @RequestBody @Valid PasswordResetRequest request
+    ) {
+        authService.resetPassword(request.email(), request.newPassword());
+        return ApiResponse.success(SuccessStatus.PASSWORD_RESET_SUCCESS);
     }
 
     @Operation(summary = "회원가입")

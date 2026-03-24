@@ -27,6 +27,7 @@ public enum SuccessStatus implements BaseStatus {
     EMAIL_SEND_SUCCESS("AUTH_200", HttpStatus.OK, "인증 메일 발송 성공"),
     EMAIL_VERIFY_SUCCESS("AUTH_200", HttpStatus.OK, "이메일 인증 성공"),
     NICKNAME_CHECK_SUCCESS("AUTH_200", HttpStatus.OK, "사용 가능한 닉네임입니다."),
+    PASSWORD_RESET_SUCCESS("AUTH_200", HttpStatus.OK, "비밀번호 재설정 성공"),
 
     /**
      * Trade (모의투자)

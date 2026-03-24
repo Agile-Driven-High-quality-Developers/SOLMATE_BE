@@ -146,6 +146,13 @@ public class CandleAccumulatorService {
         Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
         if (data.isEmpty()) return;
 
+        // 필수 필드 누락 시 불완전한 키 삭제 후 종료
+        if (!isValidCandleData(data)) {
+            log.warn("1분봉 불완전 데이터 삭제: {}", stockCode);
+            redisTemplate.delete(key);
+            return;
+        }
+
         try {
             String startTime = (String) data.get("startTime");
             LocalDateTime candleTime = (startTime != null)
@@ -168,5 +175,13 @@ public class CandleAccumulatorService {
         } catch (Exception e) {
             log.error("1분봉 저장 실패: {}", stockCode, e);
         }
+    }
+
+    private boolean isValidCandleData(Map<Object, Object> data) {
+        return data.get("open") != null
+                && data.get("high") != null
+                && data.get("low") != null
+                && data.get("close") != null
+                && data.get("volume") != null;
     }
 }

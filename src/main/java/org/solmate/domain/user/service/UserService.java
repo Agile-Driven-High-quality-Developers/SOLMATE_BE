@@ -1,11 +1,13 @@
 package org.solmate.domain.user.service;
 
 import org.solmate.common.exception.GeneralException;
+import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final S3Service s3Service;
 
     public User getUserById(Long id) {
         return userRepository.findById(id)
@@ -46,5 +49,19 @@ public class UserService {
     @Transactional
     public void updateNickname(User user, String nickname) {
         user.updateNickname(nickname);
+    }
+
+    @Transactional
+    public String updateProfileImage(Long userId, MultipartFile image) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        if (user.getImageUrl() != null) {
+            s3Service.deleteFile(user.getImageUrl());
+        }
+
+        String imageUrl = s3Service.uploadFile(image, "profile/" + userId);
+        user.updateImageUrl(imageUrl);
+        return imageUrl;
     }
 }

@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-@Tag(name = "Admin Stock", description = "주식 관리자 API")
+@Tag(name = "Admin", description = "관리자 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/stocks")

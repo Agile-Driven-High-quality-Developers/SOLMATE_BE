@@ -4,10 +4,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.solmate.common.exception.GeneralException;
+import org.solmate.common.portfolio.PortfolioCalculator;
 import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
-import org.solmate.domain.account.entity.Account;
-import org.solmate.domain.account.repository.AccountRepository;
 import org.solmate.domain.stock.dto.response.StockHoldingResponse;
 import org.solmate.domain.trade.dto.response.HoldingsResponse;
 import org.solmate.domain.trade.entity.Holdings;
@@ -27,7 +26,7 @@ public class HoldingsService {
 
     private final HoldingsRepository holdingsRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
-    private final AccountRepository accountRepository;
+    private final PortfolioCalculator portfolioCalculator;
     private final StringRedisTemplate redisTemplate;
     private final S3Service s3Service;
 
@@ -67,17 +66,7 @@ public class HoldingsService {
     // 보유 현금 조회 - Account.cash(매수 접수 시 선차감) + PENDING BUY 금액 합산
     @Transactional(readOnly = true)
     public BigDecimal getCash(Long userId) {
-        BigDecimal cash = accountRepository.findByUserId(userId)
-                .map(Account::getCash)
-                .orElse(BigDecimal.ZERO);
-
-        List<TradeHistory> pendingBuys = tradeHistoryRepository
-                .findPendingByUserIdAndTradeType(userId, TradeType.BUY);
-        BigDecimal pendingBuyAmount = pendingBuys.stream()
-                .map(t -> t.getPrice().multiply(t.getQuantity()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return cash.add(pendingBuyAmount);
+        return portfolioCalculator.getCash(userId);
     }
 
     private BigDecimal getCurrentPrice(String ticker) {

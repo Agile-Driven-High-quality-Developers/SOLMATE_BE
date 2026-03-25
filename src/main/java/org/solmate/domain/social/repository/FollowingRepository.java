@@ -36,6 +36,9 @@ public interface FollowingRepository extends JpaRepository<Following, Long> {
     @Query("SELECT f.following.id FROM Following f WHERE f.follower.id = :followerId")
     Set<Long> findFollowingIdsByFollowerId(@Param("followerId") Long followerId);
 
+    // 나를 팔로우하는 유저 목록 조회 (체결 알림 전송용)
+    @Query("SELECT f.follower FROM Following f WHERE f.following.id = :followingId")
+    List<User> findAllFollowersByFollowingId(@Param("followingId") Long followingId);
     // 팔로워 목록 조회 - userId를 팔로우하는 사람들 (첫 페이지)
     @Query("SELECT f.follower FROM Following f WHERE f.following.id = :userId AND f.follower.deletedAt IS NULL ORDER BY f.follower.id ASC")
     List<User> findFollowersFirstPage(@Param("userId") Long userId, Pageable pageable);

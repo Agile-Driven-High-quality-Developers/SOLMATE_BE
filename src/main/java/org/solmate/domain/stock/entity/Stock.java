@@ -53,4 +53,8 @@ public class Stock {
         this.sectorType = sectorType;
         this.total = total;
     }
+
+    public void updateTotal(BigDecimal total) {
+        this.total = total;
+    }
 }

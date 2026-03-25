@@ -24,6 +24,6 @@ public class StockTotalController {
     @PostMapping("/market-cap/update")
     public ResponseEntity<ApiResponse<Void>> updateMarketCap() {
         stockService.updateAllMarketCap();
-        return ApiResponse.success(SuccessStatus.SUCCESS_204);
+        return ApiResponse.success(SuccessStatus.MARKET_CAP_UPDATE_SUCCESS);
     }
 }

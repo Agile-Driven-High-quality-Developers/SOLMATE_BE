@@ -12,6 +12,7 @@ import org.solmate.domain.notification.entity.Notification;
 import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.enums.NotificationType;
 import org.solmate.domain.notification.repository.NotificationRepository;
+import org.solmate.domain.notification.service.NotificationService;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
@@ -44,6 +45,7 @@ public class OrderMatchingService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -111,11 +113,14 @@ public class OrderMatchingService {
                     tradeDiaryRepository.findByTradeHistoryId(orderId)
                         .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
 
+                    // Redis ZSet에서 제거
+                    redisTemplate.opsForZSet().remove(key, json);
+
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
-                    // Redis ZSet에서 제거
-                    redisTemplate.opsForZSet().remove(key, json);
+                    // 팔로워 알림 저장
+                    notificationService.saveTradeNotifications(user, tradeHistory.getStock().getStockName(), "BUY", currentPrice);
 
                     log.info("매수 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 
@@ -172,11 +177,14 @@ public class OrderMatchingService {
                     tradeDiaryRepository.findByTradeHistoryId(orderId)
                         .ifPresent(diary -> diary.updateStatus(TradeDiaryStatus.FILLED));
 
+                    // Redis ZSet에서 제거
+                    redisTemplate.opsForZSet().remove(key, json);
+
                     // 알림 저장
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
-                    // Redis ZSet에서 제거
-                    redisTemplate.opsForZSet().remove(key, json);
+                    // 팔로워 알림 저장
+                    notificationService.saveTradeNotifications(user, tradeHistory.getStock().getStockName(), "SELL", currentPrice);
 
                     log.info("매도 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 

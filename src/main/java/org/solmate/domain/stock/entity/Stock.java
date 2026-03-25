@@ -3,7 +3,6 @@ package org.solmate.domain.stock.entity;
 import java.math.BigDecimal;
 
 import org.solmate.domain.stock.enums.SectorType;
-import org.solmate.domain.stock.enums.StockStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

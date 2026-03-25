@@ -2,6 +2,7 @@ package org.solmate.domain.social.controller;
 
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.social.dto.response.FollowListResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
 import org.solmate.domain.social.dto.response.UserProfileResponse;
 import org.solmate.domain.social.service.UserListService;
@@ -107,5 +108,55 @@ public class UserListController {
     ) {
         UserProfileResponse response = userListService.getUserProfile(currentUserId, userId);
         return ApiResponse.success(SuccessStatus.USER_PROFILE_SUCCESS, response);
+    }
+
+    @Operation(
+            summary = "팔로워 목록 조회",
+            description = """
+                    특정 유저의 팔로워 목록을 커서 기반 무한 스크롤로 조회합니다.
+
+                    **페이지네이션**
+                    - 첫 페이지: cursor 파라미터 생략
+                    - 다음 페이지: 이전 응답의 nextCursor 값을 cursor로 전달
+                    - hasNext가 false이면 마지막 페이지
+                    """
+    )
+    @GetMapping("/{userId}/followers")
+    public ResponseEntity<ApiResponse<FollowListResponse>> getFollowerList(
+            @AuthenticationPrincipal Long currentUserId,
+            @Parameter(description = "조회할 유저의 userId")
+            @PathVariable Long userId,
+            @Parameter(description = "마지막으로 받은 유저의 userId (첫 페이지는 생략)")
+            @RequestParam(required = false) Long cursor,
+            @Parameter(description = "한 번에 가져올 유저 수 (기본값: 20)")
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        FollowListResponse response = userListService.getFollowerList(userId, cursor, size);
+        return ApiResponse.success(SuccessStatus.FOLLOWER_LIST_SUCCESS, response);
+    }
+
+    @Operation(
+            summary = "팔로잉 목록 조회",
+            description = """
+                    특정 유저의 팔로잉 목록을 커서 기반 무한 스크롤로 조회합니다.
+
+                    **페이지네이션**
+                    - 첫 페이지: cursor 파라미터 생략
+                    - 다음 페이지: 이전 응답의 nextCursor 값을 cursor로 전달
+                    - hasNext가 false이면 마지막 페이지
+                    """
+    )
+    @GetMapping("/{userId}/following")
+    public ResponseEntity<ApiResponse<FollowListResponse>> getFollowingList(
+            @AuthenticationPrincipal Long currentUserId,
+            @Parameter(description = "조회할 유저의 userId")
+            @PathVariable Long userId,
+            @Parameter(description = "마지막으로 받은 유저의 userId (첫 페이지는 생략)")
+            @RequestParam(required = false) Long cursor,
+            @Parameter(description = "한 번에 가져올 유저 수 (기본값: 20)")
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        FollowListResponse response = userListService.getFollowingList(userId, cursor, size);
+        return ApiResponse.success(SuccessStatus.FOLLOWING_LIST_SUCCESS, response);
     }
 }

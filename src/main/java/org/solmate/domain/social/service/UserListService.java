@@ -7,6 +7,8 @@ import java.util.stream.Collectors;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.social.dto.response.FollowListItemResponse;
+import org.solmate.domain.social.dto.response.FollowListResponse;
 import org.solmate.domain.social.dto.response.UserListItemResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
 import org.solmate.domain.social.dto.response.UserProfileResponse;
@@ -18,6 +20,7 @@ import org.solmate.domain.social.repository.MentoringRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -160,6 +163,62 @@ public class UserListService {
         }
 
         return UserProfileResponse.of(target, followerCount, followingCount, isMe, isFollowing, mentoringStatus);
+    }
+
+    /**
+     * 팔로워 목록 조회 (커서 기반 무한 스크롤)
+     *
+     * - targetUserId를 팔로우하는 사람들의 목록을 반환
+     * - 탈퇴한 유저는 제외
+     */
+    public FollowListResponse getFollowerList(Long targetUserId, Long cursor, int size) {
+        userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<User> followers = cursor == null
+                ? followingRepository.findFollowersFirstPage(targetUserId, pageable)
+                : followingRepository.findFollowersWithCursor(targetUserId, cursor, pageable);
+
+        boolean hasNext = followers.size() > size;
+        if (hasNext) {
+            followers = followers.subList(0, size);
+        }
+        Long nextCursor = hasNext ? followers.get(followers.size() - 1).getId() : null;
+
+        List<FollowListItemResponse> items = followers.stream()
+                .map(FollowListItemResponse::of)
+                .toList();
+
+        return new FollowListResponse(items, nextCursor, hasNext);
+    }
+
+    /**
+     * 팔로잉 목록 조회 (커서 기반 무한 스크롤)
+     *
+     * - targetUserId가 팔로우하는 사람들의 목록을 반환
+     * - 탈퇴한 유저는 제외
+     */
+    public FollowListResponse getFollowingList(Long targetUserId, Long cursor, int size) {
+        userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<User> followings = cursor == null
+                ? followingRepository.findFollowingFirstPage(targetUserId, pageable)
+                : followingRepository.findFollowingWithCursor(targetUserId, cursor, pageable);
+
+        boolean hasNext = followings.size() > size;
+        if (hasNext) {
+            followings = followings.subList(0, size);
+        }
+        Long nextCursor = hasNext ? followings.get(followings.size() - 1).getId() : null;
+
+        List<FollowListItemResponse> items = followings.stream()
+                .map(FollowListItemResponse::of)
+                .toList();
+
+        return new FollowListResponse(items, nextCursor, hasNext);
     }
 
     /**

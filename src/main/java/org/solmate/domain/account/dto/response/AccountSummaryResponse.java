@@ -1,6 +1,7 @@
 package org.solmate.domain.account.dto.response;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record AccountSummaryResponse(
         BigDecimal totalAsset,
@@ -14,5 +15,7 @@ public record AccountSummaryResponse(
         BigDecimal totalEvaluation,
 
         BigDecimal totalReturnRate,
-        BigDecimal totalReturnAmount
+        BigDecimal totalReturnAmount,
+
+        List<HoldingRatioItem> holdingsRatio
 ) {}

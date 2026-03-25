@@ -138,6 +138,18 @@ public class NotificationService {
             .toList();
     }
 
+    @Transactional
+    public void markAsRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getUser().getId().equals(userId)) {
+            throw new GeneralException(ErrorStatus.NOTIFICATION_UNAUTHORIZED);
+        }
+
+        notification.markAsRead();
+    }
+
     public NotificationCountResponse getUnreadCount(Long userId) {
         long total = notificationRepository.countByUserIdAndIsReadFalseAndIsDeletedFalse(userId);
         long social = notificationRepository.countByUserIdAndCategoryAndIsReadFalseAndIsDeletedFalse(userId, NotificationCategory.SOCIAL);

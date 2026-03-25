@@ -12,6 +12,7 @@ import org.solmate.domain.social.dto.response.MentoringResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -75,5 +76,14 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<NotificationCountResponse>> getUnreadCount(
             @AuthenticationPrincipal Long userId) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, notificationService.getUnreadCount(userId));
+    }
+
+    @Operation(summary = "알림 읽음 처리", description = "특정 알림을 읽음 처리합니다.")
+    @PatchMapping("/{notificationId}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long notificationId) {
+        notificationService.markAsRead(userId, notificationId);
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, null);
     }
 }

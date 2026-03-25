@@ -5,6 +5,7 @@ import org.solmate.external.ls.dto.response.LsQuoteResponse;
 public record StockQuoteResponse(
         String stockCode,
         String stockName,
+        String stockLogo,
         long currentPrice,
         long changePrice,
         double changeRate,
@@ -15,11 +16,12 @@ public record StockQuoteResponse(
         long volume,
         long total
 ) {
-    public static StockQuoteResponse from(LsQuoteResponse response) {
+    public static StockQuoteResponse from(LsQuoteResponse response, String stockLogo) {
         LsQuoteResponse.OutBlock block = response.t1102OutBlock();
         return new StockQuoteResponse(
                 block.shcode(),
                 block.hname(),
+                stockLogo,
                 block.price(),
                 block.change(),
                 block.diff(),

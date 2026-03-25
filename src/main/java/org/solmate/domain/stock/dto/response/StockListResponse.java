@@ -16,11 +16,11 @@ public record StockListResponse(
         BigDecimal total,
         long volume
 ) {
-    public static StockListResponse ofWithClosePrice(Stock stock, long closePrice) {
+    public static StockListResponse ofWithClosePrice(Stock stock, long closePrice, String logoUrl) {
         return new StockListResponse(
                 stock.getTickerCode(),
                 stock.getStockName(),
-                stock.getStockLogo(),
+                logoUrl,
                 stock.getSectorType(),
                 closePrice,
                 0.0,
@@ -29,7 +29,7 @@ public record StockListResponse(
         );
     }
 
-    public static StockListResponse of(Stock stock, Map<Object, Object> redisInfo) {
+    public static StockListResponse of(Stock stock, Map<Object, Object> redisInfo, String logoUrl) {
         long cur = 0;
         double chgRate = 0.0;
         long vol = 0;
@@ -46,7 +46,7 @@ public record StockListResponse(
         return new StockListResponse(
                 stock.getTickerCode(),
                 stock.getStockName(),
-                stock.getStockLogo(),
+                logoUrl,
                 stock.getSectorType(),
                 cur,
                 chgRate,

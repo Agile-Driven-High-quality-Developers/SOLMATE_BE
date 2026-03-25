@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import org.solmate.common.s3.S3Service;
 import org.solmate.domain.stock.dto.response.StockListResponse;
 import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.entity.DailyCandle;
@@ -27,26 +28,31 @@ public class StockService {
     private final StockRepository stockRepository;
     private final StockInfoService stockInfoService;
     private final DailyCandleRepository dailyCandleRepository;
+    private final S3Service s3Service;
 
     public List<StockListResponse> getStockList() {
         return stockRepository.findAll().stream()
                 .map(stock -> {
+                    String logoUrl = stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
                     Map<Object, Object> redisInfo = stockInfoService.getStockInfo(stock.getTickerCode());
                     if (redisInfo.isEmpty()) {
                         long closePrice = dailyCandleRepository
                                 .findTopByStockCodeOrderByCandleTimeDesc(stock.getTickerCode())
                                 .map(DailyCandle::getClosePrice)
                                 .orElse(0L);
-                        return StockListResponse.ofWithClosePrice(stock, closePrice);
+                        return StockListResponse.ofWithClosePrice(stock, closePrice, logoUrl);
                     }
-                    return StockListResponse.of(stock, redisInfo);
+                    return StockListResponse.of(stock, redisInfo, logoUrl);
                 })
                 .toList();
     }
 
     public StockQuoteResponse getQuote(String stockCode) {
         LsQuoteResponse response = lsApiClient.getQuote(stockCode);
-        return StockQuoteResponse.from(response);
+        String stockLogo = stockRepository.findByTickerCode(stockCode)
+                .map(stock -> stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null)
+                .orElse(null);
+        return StockQuoteResponse.from(response, stockLogo);
     }
 
     @Transactional

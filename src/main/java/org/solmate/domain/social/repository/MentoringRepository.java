@@ -6,6 +6,8 @@ import org.solmate.domain.social.entity.MentoringRelation;
 import org.solmate.domain.social.enums.MentoringStatus;
 import org.solmate.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface MentoringRepository extends JpaRepository<MentoringRelation, Long> {
 
@@ -24,4 +26,10 @@ public interface MentoringRepository extends JpaRepository<MentoringRelation, Lo
 
     // 댓글 작성자가 나의 멘토인지 확인 (mentor=댓글작성자, mentee=나, status=ACCEPTED)
     boolean existsByMentorIdAndMenteeIdAndStatus(Long mentorId, Long menteeId, MentoringStatus status);
+
+    // 내가 멘티인 멘토링 관계 일괄 조회 (유저 목록/프로필 멘토 버튼 상태 계산용)
+    // PENDING + ACCEPTED 상태만 조회 (REJECTED는 버튼 표시 불필요)
+    // 결과로 mentorId → UserMentoringStatus 맵을 구성하여 유저별 상태를 O(1)로 확인
+    @Query("SELECT m FROM MentoringRelation m WHERE m.mentee.id = :menteeId AND m.status IN :statuses")
+    List<MentoringRelation> findByMenteeIdAndStatusIn(@Param("menteeId") Long menteeId, @Param("statuses") List<MentoringStatus> statuses);
 }

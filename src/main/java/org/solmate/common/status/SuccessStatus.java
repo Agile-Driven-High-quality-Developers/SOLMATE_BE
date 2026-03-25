@@ -44,14 +44,19 @@ public enum SuccessStatus implements BaseStatus {
     MENTORING_REQUEST_SUCCESS("MENTORING_201", HttpStatus.CREATED, "멘토링 신청 성공"),
     MENTORING_ACCEPT_SUCCESS("MENTORING_200_1", HttpStatus.OK, "멘토링 수락 성공"),
     MENTORING_REJECT_SUCCESS("MENTORING_200_2", HttpStatus.OK, "멘토링 거절 성공"),
-    MENTORING_MY_STATUS_SUCCESS("MENTORING_200_3", HttpStatus.OK, "내 멘토링 신청 현황 조회 성공"),
     MENTORING_CANCEL_SUCCESS("MENTORING_200_4", HttpStatus.OK, "멘토링 취소 성공"),
 
     /**
      * Follow
      */
     FOLLOW_SUCCESS("FOLLOW_201", HttpStatus.CREATED, "팔로우 성공"),
-    UNFOLLOW_SUCCESS("FOLLOW_200", HttpStatus.OK, "팔로우 취소 성공");
+    UNFOLLOW_SUCCESS("FOLLOW_200", HttpStatus.OK, "팔로우 취소 성공"),
+
+    /**
+     * User List / Profile
+     */
+    USER_LIST_SUCCESS("USER_200_1", HttpStatus.OK, "유저 목록 조회 성공"),
+    USER_PROFILE_SUCCESS("USER_200_2", HttpStatus.OK, "유저 프로필 조회 성공");
 
     private final String code;
     private final HttpStatus httpStatus;

@@ -1,5 +1,6 @@
 package org.solmate.domain.notification.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.solmate.common.exception.GeneralException;
@@ -12,11 +13,13 @@ import org.solmate.domain.notification.enums.NotificationType;
 import org.solmate.domain.notification.repository.NotificationRepository;
 import org.solmate.domain.social.dto.response.MentoringResponse;
 import org.solmate.domain.social.enums.MentoringStatus;
+import org.solmate.domain.social.repository.FollowingRepository;
 import org.solmate.domain.social.repository.MentoringRepository;
 import org.solmate.domain.social.service.MentoringService;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,6 +36,7 @@ public class NotificationService {
     private final MentoringService mentoringService;
     private final MentoringRepository mentoringRepository;
     private final UserRepository userRepository;
+    private final FollowingRepository followingRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -148,6 +152,27 @@ public class NotificationService {
         }
 
         notification.markAsRead();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveTradeNotifications(User trader, String stockName, String side, BigDecimal price) {
+        List<User> followers = followingRepository.findAllFollowersByFollowingId(trader.getId());
+        if (followers.isEmpty()) return;
+
+        String sideText = "BUY".equals(side) ? "매수" : "매도";
+        String content = String.format("%s님이 %s을(를) %s원에 %s했습니다.",
+            trader.getNickname(), stockName, price.toPlainString(), sideText);
+
+        List<Notification> notifications = followers.stream()
+            .map(follower -> Notification.builder()
+                .user(follower)
+                .notificationType(NotificationType.TRADE)
+                .category(NotificationCategory.TRADING)
+                .content(content)
+                .build())
+            .toList();
+
+        notificationRepository.saveAll(notifications);
     }
 
     public NotificationCountResponse getUnreadCount(Long userId) {

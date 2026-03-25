@@ -32,4 +32,8 @@ public interface MentoringRepository extends JpaRepository<MentoringRelation, Lo
     // 결과로 mentorId → UserMentoringStatus 맵을 구성하여 유저별 상태를 O(1)로 확인
     @Query("SELECT m FROM MentoringRelation m WHERE m.mentee.id = :menteeId AND m.status IN :statuses")
     List<MentoringRelation> findByMenteeIdAndStatusIn(@Param("menteeId") Long menteeId, @Param("statuses") List<MentoringStatus> statuses);
+
+    // 멘토링 취소 시 (menteeId, mentorId)로 관계 조회
+    @Query("SELECT m FROM MentoringRelation m WHERE m.mentee.id = :menteeId AND m.mentor.id = :mentorId AND m.status IN :statuses")
+    List<MentoringRelation> findByMenteeIdAndMentorIdAndStatusIn(@Param("menteeId") Long menteeId, @Param("mentorId") Long mentorId, @Param("statuses") List<MentoringStatus> statuses);
 }

@@ -51,7 +51,12 @@ public enum SuccessStatus implements BaseStatus {
      * Follow
      */
     FOLLOW_SUCCESS("FOLLOW_201", HttpStatus.CREATED, "팔로우 성공"),
-    UNFOLLOW_SUCCESS("FOLLOW_200", HttpStatus.OK, "팔로우 취소 성공");
+    UNFOLLOW_SUCCESS("FOLLOW_200", HttpStatus.OK, "팔로우 취소 성공"),
+
+    /**
+     * Admin
+     */
+    MARKET_CAP_UPDATE_SUCCESS("ADMIN_200", HttpStatus.OK, "시가총액 업데이트 성공");
 
     private final String code;
     private final HttpStatus httpStatus;

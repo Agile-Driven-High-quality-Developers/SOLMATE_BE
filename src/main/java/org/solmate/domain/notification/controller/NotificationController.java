@@ -1,14 +1,21 @@
 package org.solmate.domain.notification.controller;
 
+import java.util.List;
+
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
+import org.solmate.domain.notification.dto.response.NotificationCountResponse;
+import org.solmate.domain.notification.dto.response.NotificationResponse;
+import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.service.NotificationService;
 import org.solmate.domain.social.dto.response.MentoringResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,5 +60,20 @@ public class NotificationController {
     ) {
         MentoringResponse response = notificationService.rejectMentoringFromNotification(mentorId, notificationId);
         return ApiResponse.success(SuccessStatus.MENTORING_REJECT_SUCCESS, response);
+    }
+
+    @Operation(summary = "알림 목록 조회", description = "전체 또는 카테고리별 알림 목록을 조회합니다.")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getNotifications(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) NotificationCategory category) {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, notificationService.getNotifications(userId, category));
+    }
+
+    @Operation(summary = "미읽음 알림 수 조회", description = "전체 및 카테고리별 미읽음 알림 수를 조회합니다.")
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<NotificationCountResponse>> getUnreadCount(
+            @AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, notificationService.getUnreadCount(userId));
     }
 }

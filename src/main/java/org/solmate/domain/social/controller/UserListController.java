@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "UserList", description = "유저 목록 / 프로필 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/users")
 public class UserListController {
 
     private final UserListService userListService;

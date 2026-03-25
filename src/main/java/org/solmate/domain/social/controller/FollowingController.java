@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Follow", description = "팔로우 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/follows")
+@RequestMapping("/api/follows")
 public class FollowingController {
 
     private final FollowingService followingService;

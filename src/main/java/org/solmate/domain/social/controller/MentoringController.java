@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Mentoring", description = "멘토링 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 public class MentoringController {
 
     private final MentoringService mentoringService;

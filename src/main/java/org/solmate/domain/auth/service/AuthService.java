@@ -1,10 +1,13 @@
 package org.solmate.domain.auth.service;
 
+import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.jwt.JwtProvider;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.account.entity.Account;
+import org.solmate.domain.account.repository.AccountRepository;
 import org.solmate.domain.auth.dto.request.LoginRequest;
 import org.solmate.domain.auth.dto.request.SignUpRequest;
 import org.solmate.domain.auth.service.EmailVerificationService;
@@ -31,9 +34,12 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class AuthService {
 
+    private static final BigDecimal INITIAL_SEED_MONEY = new BigDecimal("10000000");
+
     private final UserService userService;
     private final UserRepository userRepository;
     private final LoginTypeRepository loginTypeRepository;
+    private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
@@ -63,6 +69,12 @@ public class AuthService {
                 .loginType(OAuthProvider.EMAIL)
                 .build();
         loginTypeRepository.save(loginType);
+
+        Account account = Account.builder()
+                .user(user)
+                .cash(INITIAL_SEED_MONEY)
+                .build();
+        accountRepository.save(account);
     }
 
     // 로그인

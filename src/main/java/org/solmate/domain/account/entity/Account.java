@@ -36,10 +36,14 @@ public class Account extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal cash;
 
+    @Column(name = "initial_cash", nullable = false, precision = 19, scale = 4)
+    private BigDecimal initialCash;
+
     @Builder
     public Account(User user, BigDecimal cash) {
         this.user = user;
         this.cash = cash;
+        this.initialCash = cash;
     }
 
     public void addCash(BigDecimal amount) {

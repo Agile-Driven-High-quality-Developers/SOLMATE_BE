@@ -1,5 +1,7 @@
 package org.solmate.domain.stock.entity;
 
+import java.math.BigDecimal;
+
 import org.solmate.domain.stock.enums.SectorType;
 import org.solmate.domain.stock.enums.StockStatus;
 
@@ -40,13 +42,16 @@ public class Stock {
     @Column(nullable = false, length = 30)
     private SectorType sectorType;
 
+    @Column(nullable = false)
+    private BigDecimal total;
 
 
     @Builder
-    public Stock(String tickerCode, String stockName, String stockLogo, SectorType sectorType) {
+    public Stock(String tickerCode, String stockName, String stockLogo, SectorType sectorType, BigDecimal total) {
         this.tickerCode = tickerCode;
         this.stockName = stockName;
         this.stockLogo = stockLogo;
         this.sectorType = sectorType;
+        this.total = total;
     }
 }

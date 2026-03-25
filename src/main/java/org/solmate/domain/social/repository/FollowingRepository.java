@@ -34,4 +34,8 @@ public interface FollowingRepository extends JpaRepository<Following, Long> {
     // 유저 목록에서 isFollowing 여부를 Set.contains() O(1)로 일괄 확인하기 위해 사용
     @Query("SELECT f.following.id FROM Following f WHERE f.follower.id = :followerId")
     Set<Long> findFollowingIdsByFollowerId(@Param("followerId") Long followerId);
+
+    // 나를 팔로우하는 유저 목록 조회 (체결 알림 전송용)
+    @Query("SELECT f.follower FROM Following f WHERE f.following.id = :followingId")
+    List<User> findAllFollowersByFollowingId(@Param("followingId") Long followingId);
 }

@@ -120,7 +120,7 @@ public class OrderMatchingService {
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
                     // 팔로워 알림 저장
-                    notificationService.saveTradeNotifications(user, tradeHistory.getStock().getStockName(), "BUY", currentPrice);
+                    notificationService.saveTradeNotifications(user, tradeHistory.getId(), ticker, tradeHistory.getStock().getStockName(), "BUY", currentPrice, quantity);
 
                     log.info("매수 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 
@@ -184,7 +184,7 @@ public class OrderMatchingService {
                     saveNotification(user, tradeHistory, currentPrice, quantity);
 
                     // 팔로워 알림 저장
-                    notificationService.saveTradeNotifications(user, tradeHistory.getStock().getStockName(), "SELL", currentPrice);
+                    notificationService.saveTradeNotifications(user, tradeHistory.getId(), ticker, tradeHistory.getStock().getStockName(), "SELL", currentPrice, quantity);
 
                     log.info("매도 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
 

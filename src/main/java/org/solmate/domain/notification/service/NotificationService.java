@@ -2,6 +2,7 @@ package org.solmate.domain.notification.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
@@ -155,7 +156,7 @@ public class NotificationService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveTradeNotifications(User trader, String stockName, String side, BigDecimal price) {
+    public void saveTradeNotifications(User trader, Long tradeHistoryId, String stockCode, String stockName, String side, BigDecimal price, BigDecimal quantity) {
         List<User> followers = followingRepository.findAllFollowersByFollowingId(trader.getId());
         if (followers.isEmpty()) return;
 
@@ -163,12 +164,30 @@ public class NotificationService {
         String content = String.format("%s님이 %s을(를) %s원에 %s했습니다.",
             trader.getNickname(), stockName, price.toPlainString(), sideText);
 
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(Map.of(
+                "targetUserId", trader.getId(),
+                "targetUserName", trader.getNickname(),
+                "tradeHistoryId", tradeHistoryId,
+                "stockCode", stockCode,
+                "stockName", stockName,
+                "side", side,
+                "price", price,
+                "quantity", quantity
+            ));
+        } catch (Exception e) {
+            payload = null;
+        }
+
+        String finalPayload = payload;
         List<Notification> notifications = followers.stream()
             .map(follower -> Notification.builder()
                 .user(follower)
                 .notificationType(NotificationType.TRADE)
                 .category(NotificationCategory.TRADING)
                 .content(content)
+                .payload(finalPayload)
                 .build())
             .toList();
 

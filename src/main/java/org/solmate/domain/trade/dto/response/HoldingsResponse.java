@@ -45,4 +45,34 @@ public record HoldingsResponse(
                 returnAmount
         );
     }
+
+    // 프로필용 (내/타인/멘토/멘티) - avgPrice null
+    public static HoldingsResponse ofProfile(Holdings holdings, BigDecimal currentPrice, S3Service s3Service) {
+        BigDecimal quantity = holdings.getQuantity();
+        BigDecimal avgPrice = holdings.getAvgPrice();
+
+        BigDecimal evaluation = currentPrice.multiply(quantity).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal returnAmount = currentPrice.subtract(avgPrice).multiply(quantity).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal returnRate = avgPrice.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : currentPrice.subtract(avgPrice)
+                        .divide(avgPrice, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                        .setScale(2, RoundingMode.HALF_UP);
+
+        String logoKey = holdings.getStock().getStockLogo();
+        String stockLogo = (logoKey != null) ? s3Service.buildFileUrl(logoKey) : null;
+
+        return new HoldingsResponse(
+                holdings.getTickerCode(),
+                holdings.getStock().getStockName(),
+                stockLogo,
+                quantity,
+                null,
+                currentPrice,
+                evaluation,
+                returnRate,
+                returnAmount
+        );
+    }
 }

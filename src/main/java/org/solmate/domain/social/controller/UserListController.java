@@ -83,7 +83,7 @@ public class UserListController {
      * - 총 수익률 / 총 수익은 추후 구현 예정
      */
     @Operation(
-            summary = "유저 프로필 조회",
+            summary = "유저 프로필 카드 조회",
             description = """
                     특정 유저의 프로필을 조회합니다.
 

@@ -1,8 +1,13 @@
 package org.solmate.domain.notification.service;
 
+import java.util.List;
+
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.notification.dto.response.NotificationCountResponse;
+import org.solmate.domain.notification.dto.response.NotificationResponse;
 import org.solmate.domain.notification.entity.Notification;
+import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.enums.NotificationType;
 import org.solmate.domain.notification.repository.NotificationRepository;
 import org.solmate.domain.social.dto.response.MentoringResponse;
@@ -121,5 +126,36 @@ public class NotificationService {
         } catch (Exception e) {
             throw new GeneralException(ErrorStatus.NOTIFICATION_INVALID_TYPE);
         }
+    }
+
+    public List<NotificationResponse> getNotifications(Long userId, NotificationCategory category) {
+        List<Notification> notifications = (category != null)
+            ? notificationRepository.findAllByUserIdAndCategoryAndIsDeletedFalseOrderByCreatedAtDesc(userId, category)
+            : notificationRepository.findAllByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId);
+
+        return notifications.stream()
+            .map(NotificationResponse::of)
+            .toList();
+    }
+
+    @Transactional
+    public void markAsRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getUser().getId().equals(userId)) {
+            throw new GeneralException(ErrorStatus.NOTIFICATION_UNAUTHORIZED);
+        }
+
+        notification.markAsRead();
+    }
+
+    public NotificationCountResponse getUnreadCount(Long userId) {
+        long total = notificationRepository.countByUserIdAndIsReadFalseAndIsDeletedFalse(userId);
+        long social = notificationRepository.countByUserIdAndCategoryAndIsReadFalseAndIsDeletedFalse(userId, NotificationCategory.SOCIAL);
+        long trading = notificationRepository.countByUserIdAndCategoryAndIsReadFalseAndIsDeletedFalse(userId, NotificationCategory.TRADING);
+        long mentoring = notificationRepository.countByUserIdAndCategoryAndIsReadFalseAndIsDeletedFalse(userId, NotificationCategory.MENTORING);
+
+        return new NotificationCountResponse(total, social, trading, mentoring);
     }
 }

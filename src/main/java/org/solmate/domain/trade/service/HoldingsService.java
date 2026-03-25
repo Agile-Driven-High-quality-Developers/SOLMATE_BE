@@ -39,6 +39,16 @@ public class HoldingsService {
             .toList();
     }
 
+    // 프로필용 보유 종목 조회 (내/타인/멘토/멘티) - avgPrice 미포함
+    @Transactional(readOnly = true)
+    public List<HoldingsResponse> getProfileHoldings(Long userId) {
+        List<Holdings> holdings = holdingsRepository.findByUserId(userId);
+
+        return holdings.stream()
+            .map(h -> HoldingsResponse.ofProfile(h, getCurrentPrice(h.getTickerCode()), s3Service))
+            .toList();
+    }
+
     // 특정 종목의 보유현황 조회 - PENDING 매도 주문까지 반영해 실제 보유수량을 계산 후 현재가 기준 평가손익 반환
     @Transactional(readOnly = true)
     public StockHoldingResponse getStockHolding(Long userId, String stockCode) {

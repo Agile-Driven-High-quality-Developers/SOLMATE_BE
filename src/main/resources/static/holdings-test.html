@@ -2,144 +2,261 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>보유 종목 실시간</title>
+    <title>보유 종목</title>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
-        input, button { padding: 8px; margin: 4px; font-size: 14px; }
+        input, button, select { padding: 8px; margin: 4px; font-size: 14px; }
         h3 { color: #aaffaa; border-bottom: 1px solid #333; padding-bottom: 6px; }
         table { border-collapse: collapse; width: 100%; margin-top: 10px; font-size: 13px; }
         th { background: #333; color: #aaffaa; padding: 8px; text-align: left; }
         td { padding: 8px; border-bottom: 1px solid #333; }
         .plus { color: #ff6666; }
         .minus { color: #6699ff; }
-        #status { margin: 8px 0; }
+        #status { margin: 8px 0; color: #ffff88; }
         img { width: 30px; height: 30px; border-radius: 50%; vertical-align: middle; }
+        .tab-btn { background: #333; color: #aaffaa; border: 1px solid #555; cursor: pointer; }
+        .tab-btn.active { background: #005500; color: #00ff00; }
+        label { color: #aaffaa; margin-right: 4px; }
     </style>
 </head>
 <body>
-    <h2>📦 보유 종목 실시간</h2>
-    <input id="token" type="text" placeholder="JWT 토큰 입력" style="width: 400px;" />
-    <input id="targetUserId" type="text" placeholder="타인 userId (비우면 내 것)" style="width: 200px;" />
-    <button onclick="start()">실시간 시작</button>
-    <button onclick="stop()">중지</button>
-    <div id="status">대기 중...</div>
+    <h2>📦 보유 종목</h2>
 
-    <h3>보유 종목 목록</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>로고</th>
-                <th>종목명</th>
-                <th>종목코드</th>
-                <th>수량</th>
-                <th>평균단가</th>
-                <th>현재가</th>
-                <th>평가금액</th>
-                <th>수익률</th>
-                <th>수익금</th>
-            </tr>
-        </thead>
-        <tbody id="holdings-body"></tbody>
-    </table>
+    <input id="token" type="text" placeholder="JWT 토큰 입력" style="width: 400px;" />
+
+    <div style="margin: 10px 0;">
+        <button class="tab-btn active" onclick="switchTab('account')">내 계좌</button>
+        <button class="tab-btn" onclick="switchTab('profile')">프로필 조회</button>
+    </div>
+
+    <!-- 내 계좌 탭 -->
+    <div id="tab-account">
+        <button onclick="startAccount()">실시간 시작</button>
+        <button onclick="stop()">중지</button>
+        <div id="status-account">대기 중...</div>
+        <h3>보유 종목 (내 계좌 - 평균단가 포함)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>로고</th><th>종목명</th><th>종목코드</th><th>수량</th>
+                    <th>평균단가</th><th>현재가</th><th>평가금액</th><th>수익률</th><th>수익금</th>
+                </tr>
+            </thead>
+            <tbody id="holdings-body-account"></tbody>
+        </table>
+    </div>
+
+    <!-- 프로필 탭 -->
+    <div id="tab-profile" style="display:none;">
+        <select id="mode" onchange="onModeChange()">
+            <option value="me">내 프로필</option>
+            <option value="other">타인 프로필</option>
+            <option value="mentor">멘토 프로필</option>
+            <option value="mentee">멘티 프로필</option>
+        </select>
+        <input id="targetUserId" type="text" placeholder="userId 입력" style="width: 160px; display:none;" />
+        <button onclick="loadProfile()">조회</button>
+        <div id="status-profile">대기 중...</div>
+        <h3 id="profile-title">보유 종목 (프로필 - 평균단가 미포함)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>로고</th><th>종목명</th><th>종목코드</th><th>수량</th>
+                    <th>현재가</th><th>평가금액</th><th>수익률</th><th>수익금</th>
+                </tr>
+            </thead>
+            <tbody id="holdings-body-profile"></tbody>
+        </table>
+    </div>
 
     <script>
         let stompClient = null;
         let subs = [];
-        let holdings = {}; // ticker -> { avgPrice, quantity, stockName, stockLogo, currentPrice }
+        let holdings = {};
+        let profileHoldings = {}; // ticker -> { avgPrice, quantity, stockName, stockLogo, currentPrice }
 
-        async function start() {
+        function switchTab(tab) {
+            document.getElementById('tab-account').style.display = tab === 'account' ? '' : 'none';
+            document.getElementById('tab-profile').style.display = tab === 'profile' ? '' : 'none';
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', (tab === 'account' && i === 0) || (tab === 'profile' && i === 1));
+            });
+        }
+
+        function onModeChange() {
+            const mode = document.getElementById('mode').value;
+            document.getElementById('targetUserId').style.display = mode === 'me' ? 'none' : 'inline';
+        }
+
+        // ===== 내 계좌 =====
+        async function startAccount() {
             const token = document.getElementById('token').value.trim();
-            if (!token) { document.getElementById('status').innerText = '❌ 토큰을 입력하세요.'; return; }
+            if (!token) { setStatus('account', '❌ 토큰을 입력하세요.'); return; }
 
-            // 1. REST API로 초기 보유 종목 로드
-            const targetUserId = document.getElementById('targetUserId').value.trim();
-            const url = targetUserId
-                ? `http://localhost:8080/api/holdings/${targetUserId}`
-                : 'http://localhost:8080/api/holdings';
-            const res = await fetch(url, {
-                headers: { 'Authorization': 'Bearer ' + token },
-                cache: 'no-store'
+            const res = await fetch('http://localhost:8080/api/holdings', {
+                headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store'
             });
             const json = await res.json();
-            if (!json.isSuccess) { document.getElementById('status').innerText = '❌ ' + json.message; return; }
+            if (!json.isSuccess) { setStatus('account', '❌ ' + json.message); return; }
 
             holdings = {};
             json.data.forEach(h => {
                 holdings[h.tickerCode] = {
-                    avgPrice: h.avgPrice,
-                    quantity: h.quantity,
-                    stockName: h.stockName,
-                    stockLogo: h.stockLogo,
-                    currentPrice: h.currentPrice
+                    avgPrice: h.avgPrice, quantity: h.quantity,
+                    stockName: h.stockName, stockLogo: h.stockLogo, currentPrice: h.currentPrice
                 };
             });
-            renderAll();
+            renderAccount();
 
-            // 2. STOMP 연결 (ws-test.html 방식 동일)
             stop();
             const socket = new SockJS('http://localhost:8080/ws');
             stompClient = Stomp.over(socket);
             stompClient.debug = null;
-
             stompClient.connect({}, function () {
-                document.getElementById('status').innerText = '🔴 실시간 연결됨 | 종목 수: ' + Object.keys(holdings).length;
-
+                setStatus('account', '🔴 실시간 연결됨 | 종목 수: ' + Object.keys(holdings).length);
                 Object.keys(holdings).forEach(ticker => {
                     const sub = stompClient.subscribe('/topic/stocks/' + ticker + '/quote', function (msg) {
                         const data = JSON.parse(msg.body);
                         holdings[ticker].currentPrice = data.currentPrice;
-                        updateRow(ticker);
+                        updateAccountRow(ticker);
                     });
                     subs.push(sub);
                 });
-            }, function (err) {
-                document.getElementById('status').innerText = '❌ 연결 실패: ' + err;
-            });
+            }, function (err) { setStatus('account', '❌ 연결 실패: ' + err); });
         }
 
         function stop() {
             subs.forEach(s => s.unsubscribe());
             subs = [];
             if (stompClient) { stompClient.disconnect(); stompClient = null; }
-            document.getElementById('status').innerText = '⏹ 중지됨';
         }
 
-        function renderAll() {
-            const tbody = document.getElementById('holdings-body');
+        function renderAccount() {
+            const tbody = document.getElementById('holdings-body-account');
             tbody.innerHTML = '';
             Object.keys(holdings).forEach(ticker => {
                 const tr = document.createElement('tr');
                 tr.id = 'row-' + ticker;
                 tbody.appendChild(tr);
-                updateRow(ticker);
+                updateAccountRow(ticker);
             });
         }
 
-        function updateRow(ticker) {
+        function updateAccountRow(ticker) {
             const h = holdings[ticker];
-            const cur = h.currentPrice;
-            const avg = h.avgPrice;
-            const qty = h.quantity;
+            const cur = h.currentPrice, avg = h.avgPrice, qty = h.quantity;
             const evaluation = cur * qty;
             const returnAmount = (cur - avg) * qty;
             const returnRate = ((cur - avg) / avg * 100).toFixed(2);
-            const plus = returnAmount >= 0;
-            const cls = plus ? 'plus' : 'minus';
-            const sign = plus ? '+' : '';
-
+            const cls = returnAmount >= 0 ? 'plus' : 'minus';
+            const sign = returnAmount >= 0 ? '+' : '';
             document.getElementById('row-' + ticker).innerHTML = `
                 <td><img src="${h.stockLogo}" onerror="this.style.display='none'" /></td>
-                <td>${h.stockName}</td>
-                <td>${ticker}</td>
-                <td>${qty.toLocaleString()}</td>
-                <td>${avg.toLocaleString()}</td>
-                <td>${cur.toLocaleString()}</td>
-                <td>${evaluation.toLocaleString()}</td>
+                <td>${h.stockName}</td><td>${ticker}</td>
+                <td>${qty.toLocaleString()}주</td>
+                <td>${avg.toLocaleString()}원</td>
+                <td>${cur.toLocaleString()}원</td>
+                <td>${evaluation.toLocaleString()}원</td>
                 <td class="${cls}">${sign}${returnRate}%</td>
-                <td class="${cls}">${sign}${returnAmount.toLocaleString()}</td>
+                <td class="${cls}">${sign}${returnAmount.toLocaleString()}원</td>
             `;
+        }
+
+        // ===== 프로필 =====
+        async function loadProfile() {
+            const token = document.getElementById('token').value.trim();
+            const mode = document.getElementById('mode').value;
+            const targetUserId = document.getElementById('targetUserId').value.trim();
+
+            if (!token) { setStatus('profile', '❌ 토큰을 입력하세요.'); return; }
+            if (mode !== 'me' && !targetUserId) { setStatus('profile', '❌ userId를 입력하세요.'); return; }
+
+            const url = mode === 'me'
+                ? 'http://localhost:8080/api/holdings'
+                : `http://localhost:8080/api/holdings/${targetUserId}`;
+
+            const modeLabel = { me: '내 프로필', other: '타인 프로필', mentor: '멘토 프로필', mentee: '멘티 프로필' }[mode];
+            document.getElementById('profile-title').innerText = `보유 종목 - ${modeLabel}${targetUserId ? ` (userId: ${targetUserId})` : ''} (평균단가 미포함)`;
+
+            setStatus('profile', '조회 중...');
+            try {
+                const res = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store'
+                });
+                const json = await res.json();
+                if (!json.isSuccess) { setStatus('profile', '❌ ' + json.message); return; }
+
+                const tbody = document.getElementById('holdings-body-profile');
+                tbody.innerHTML = '';
+                if (!json.data || json.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;">보유 종목 없음</td></tr>';
+                    setStatus('profile', `✅ ${modeLabel} 보유 종목 없음`);
+                    return;
+                }
+
+                profileHoldings = {};
+                json.data.forEach(h => {
+                    profileHoldings[h.tickerCode] = {
+                        avgPrice: h.avgPrice,   // JS에만 보관, 테이블엔 미표시
+                        quantity: h.quantity,
+                        stockName: h.stockName,
+                        stockLogo: h.stockLogo,
+                        currentPrice: h.currentPrice
+                    };
+                    const tr = document.createElement('tr');
+                    tr.id = 'profile-row-' + h.tickerCode;
+                    tbody.appendChild(tr);
+                });
+                renderProfileAll();
+
+                // STOMP 실시간 구독
+                stop();
+                const socket = new SockJS('http://localhost:8080/ws');
+                stompClient = Stomp.over(socket);
+                stompClient.debug = null;
+                stompClient.connect({}, function () {
+                    setStatus('profile', `🔴 실시간 연결됨 | ${modeLabel} 종목 수: ${json.data.length}개`);
+                    Object.keys(profileHoldings).forEach(ticker => {
+                        const sub = stompClient.subscribe('/topic/stocks/' + ticker + '/quote', function (msg) {
+                            const data = JSON.parse(msg.body);
+                            profileHoldings[ticker].currentPrice = data.currentPrice;
+                            updateProfileRow(ticker);
+                        });
+                        subs.push(sub);
+                    });
+                }, function (err) { setStatus('profile', '❌ 연결 실패: ' + err); });
+            } catch (e) {
+                setStatus('profile', '❌ 요청 실패: ' + e.message);
+            }
+        }
+
+        function renderProfileAll() {
+            Object.keys(profileHoldings).forEach(ticker => updateProfileRow(ticker));
+        }
+
+        function updateProfileRow(ticker) {
+            const h = profileHoldings[ticker];
+            const cur = h.currentPrice, avg = h.avgPrice, qty = h.quantity;
+            const evaluation = cur * qty;
+            const returnAmount = (cur - avg) * qty;
+            const returnRate = avg ? ((cur - avg) / avg * 100).toFixed(2) : '0.00';
+            const cls = returnAmount >= 0 ? 'plus' : 'minus';
+            const sign = returnAmount >= 0 ? '+' : '';
+            document.getElementById('profile-row-' + ticker).innerHTML = `
+                <td><img src="${h.stockLogo ?? ''}" onerror="this.style.display='none'" /></td>
+                <td>${h.stockName}</td><td>${ticker}</td>
+                <td>${Number(qty).toLocaleString()}주</td>
+                <td>${Number(cur).toLocaleString()}원</td>
+                <td>${Math.round(evaluation).toLocaleString()}원</td>
+                <td class="${cls}">${sign}${returnRate}%</td>
+                <td class="${cls}">${sign}${Math.round(returnAmount).toLocaleString()}원</td>
+            `;
+        }
+
+        function setStatus(tab, msg) {
+            document.getElementById('status-' + tab).innerText = msg;
         }
     </script>
 </body>

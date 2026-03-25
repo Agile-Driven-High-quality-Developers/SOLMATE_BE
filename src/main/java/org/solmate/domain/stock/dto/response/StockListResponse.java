@@ -1,9 +1,10 @@
 package org.solmate.domain.stock.dto.response;
 
+import java.math.BigDecimal;
+import java.util.Map;
+
 import org.solmate.domain.stock.entity.Stock;
 import org.solmate.domain.stock.enums.SectorType;
-
-import java.util.Map;
 
 public record StockListResponse(
         String tickerCode,
@@ -11,7 +12,8 @@ public record StockListResponse(
         String stockLogo,
         SectorType sectorType,
         long currentPrice,
-        double changeRate
+        double changeRate,
+        BigDecimal total
 ) {
     public static StockListResponse ofWithClosePrice(Stock stock, long closePrice) {
         return new StockListResponse(
@@ -20,7 +22,8 @@ public record StockListResponse(
                 stock.getStockLogo(),
                 stock.getSectorType(),
                 closePrice,
-                0.0
+                0.0,
+                stock.getTotal()
         );
     }
 
@@ -41,7 +44,8 @@ public record StockListResponse(
                 stock.getStockLogo(),
                 stock.getSectorType(),
                 cur,
-                chgRate
+                chgRate,
+                stock.getTotal()
         );
     }
 }

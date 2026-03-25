@@ -2,6 +2,8 @@ package org.solmate.common.portfolio;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.solmate.common.exception.GeneralException;
@@ -44,23 +46,40 @@ public class PortfolioCalculator {
         return cash.add(pendingBuyAmount).setScale(0, RoundingMode.HALF_UP);
     }
 
+    // 종목별 평가금액 (실제 보유 수량 = Holdings.quantity + PENDING SELL)
+    @Transactional(readOnly = true)
+    public List<PortfolioHoldingLine> getHoldingEvaluationLines(Long userId) {
+        List<Holdings> holdingsList = holdingsRepository.findByUserId(userId);
+        List<PortfolioHoldingLine> lines = new ArrayList<>();
+
+        for (Holdings h : holdingsList) {
+            BigDecimal pendingSellQuantity = tradeHistoryRepository
+                    .findPendingByUserIdAndTickerCodeAndTradeType(userId, h.getTickerCode(), TradeType.SELL)
+                    .stream()
+                    .map(TradeHistory::getQuantity)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal totalQuantity = h.getQuantity().add(pendingSellQuantity);
+            if (totalQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            BigDecimal evaluation = getCurrentPrice(h.getTickerCode()).multiply(totalQuantity);
+            lines.add(new PortfolioHoldingLine(
+                    h.getTickerCode(),
+                    h.getStock().getStockName(),
+                    evaluation));
+        }
+
+        lines.sort(Comparator.comparing(PortfolioHoldingLine::evaluation).reversed());
+        return lines;
+    }
+
     // 총 평가금액 = (Holdings.quantity + PENDING SELL 수량) × 현재가의 합
-    // Holdings.quantity는 매도 주문 접수 시 선차감되므로 PENDING SELL 수량을 복원해야 실제 보유 수량
     @Transactional(readOnly = true)
     public BigDecimal getTotalEvaluation(Long userId) {
-        List<Holdings> holdingsList = holdingsRepository.findByUserId(userId);
-
-        return holdingsList.stream()
-                .map(h -> {
-                    BigDecimal pendingSellQuantity = tradeHistoryRepository
-                            .findPendingByUserIdAndTickerCodeAndTradeType(userId, h.getTickerCode(), TradeType.SELL)
-                            .stream()
-                            .map(TradeHistory::getQuantity)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    BigDecimal totalQuantity = h.getQuantity().add(pendingSellQuantity);
-                    return getCurrentPrice(h.getTickerCode()).multiply(totalQuantity);
-                })
+        return getHoldingEvaluationLines(userId).stream()
+                .map(PortfolioHoldingLine::evaluation)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(0, RoundingMode.HALF_UP);
     }

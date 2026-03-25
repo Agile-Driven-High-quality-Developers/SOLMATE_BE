@@ -13,7 +13,7 @@ public record StockQuoteResponse(
         long highPrice,
         long lowPrice,
         long volume,
-        long marketCap
+        long total
 ) {
     public static StockQuoteResponse from(LsQuoteResponse response) {
         LsQuoteResponse.OutBlock block = response.t1102OutBlock();

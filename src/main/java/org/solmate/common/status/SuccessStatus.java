@@ -56,7 +56,13 @@ public enum SuccessStatus implements BaseStatus {
      * User List / Profile
      */
     USER_LIST_SUCCESS("USER_200_1", HttpStatus.OK, "유저 목록 조회 성공"),
-    USER_PROFILE_SUCCESS("USER_200_2", HttpStatus.OK, "유저 프로필 조회 성공");
+    USER_PROFILE_SUCCESS("USER_200_2", HttpStatus.OK, "유저 프로필 조회 성공"),
+
+
+    /**
+     * Admin
+     */
+    MARKET_CAP_UPDATE_SUCCESS("ADMIN_200", HttpStatus.OK, "시가총액 업데이트 성공");
 
     private final String code;
     private final HttpStatus httpStatus;

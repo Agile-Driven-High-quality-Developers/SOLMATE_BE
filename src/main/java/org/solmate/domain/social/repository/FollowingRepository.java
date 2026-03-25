@@ -1,10 +1,14 @@
 package org.solmate.domain.social.repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.solmate.domain.social.entity.Following;
 import org.solmate.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface FollowingRepository extends JpaRepository<Following, Long> {
 
@@ -13,4 +17,21 @@ public interface FollowingRepository extends JpaRepository<Following, Long> {
 
     // 특정 팔로우 관계 조회 (팔로우 취소 시 사용)
     Optional<Following> findByFollowerAndFollowing(User follower, User following);
+
+    // 유저 ID 목록에 대한 팔로워 수 bulk 집계 (N+1 방지)
+    // 반환: [userId, count] 형태의 Object[] 리스트
+    // 팔로워가 없는 유저는 결과에 포함되지 않으므로 서비스에서 getOrDefault(0L) 처리 필요
+    @Query("SELECT f.following.id, COUNT(f) FROM Following f WHERE f.following.id IN :userIds GROUP BY f.following.id")
+    List<Object[]> countFollowersByUserIds(@Param("userIds") List<Long> userIds);
+
+    // 유저 ID 목록에 대한 팔로잉 수 bulk 집계 (N+1 방지)
+    // 반환: [userId, count] 형태의 Object[] 리스트
+    // 팔로잉이 없는 유저는 결과에 포함되지 않으므로 서비스에서 getOrDefault(0L) 처리 필요
+    @Query("SELECT f.follower.id, COUNT(f) FROM Following f WHERE f.follower.id IN :userIds GROUP BY f.follower.id")
+    List<Object[]> countFollowingByUserIds(@Param("userIds") List<Long> userIds);
+
+    // 현재 유저가 팔로우하는 유저 ID Set 조회
+    // 유저 목록에서 isFollowing 여부를 Set.contains() O(1)로 일괄 확인하기 위해 사용
+    @Query("SELECT f.following.id FROM Following f WHERE f.follower.id = :followerId")
+    Set<Long> findFollowingIdsByFollowerId(@Param("followerId") Long followerId);
 }

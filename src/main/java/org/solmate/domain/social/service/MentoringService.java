@@ -9,7 +9,6 @@ import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.enums.NotificationType;
 import org.solmate.domain.notification.repository.NotificationRepository;
 import org.solmate.domain.social.dto.response.MentoringResponse;
-import org.solmate.domain.social.dto.response.MyMentoringStatusResponse;
 import org.solmate.domain.social.entity.MentoringRelation;
 import org.solmate.domain.social.enums.MentoringStatus;
 import org.solmate.domain.social.repository.MentoringRepository;
@@ -130,28 +129,6 @@ public class MentoringService {
         notificationRepository.save(notification);
 
         return MentoringResponse.of(relation);
-    }
-
-    /**
-     * 내 멘토링 신청 현황 조회
-     * - 유저 목록 진입 시 프론트에서 호출하여 멘토 신청 버튼 활성화 여부를 판단하는 데 사용
-     * - hasAcceptedMentor가 true이면 모든 버튼 비활성화
-     * - pendingMentorIds에 포함된 유저 ID의 버튼만 개별 비활성화
-     */
-    public MyMentoringStatusResponse getMyMentoringStatus(Long menteeId) {
-        User mentee = userRepository.findById(menteeId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-
-        // 이미 수락된 멘토가 있는지 여부
-        boolean hasAcceptedMentor = mentoringRepository.existsByMenteeAndStatus(mentee, MentoringStatus.ACCEPTED);
-
-        // 현재 대기 중인(PENDING) 신청을 보낸 멘토들의 ID 목록
-        List<Long> pendingMentorIds = mentoringRepository.findAllByMenteeAndStatus(mentee, MentoringStatus.PENDING)
-                .stream()
-                .map(relation -> relation.getMentor().getId())
-                .toList();
-
-        return new MyMentoringStatusResponse(hasAcceptedMentor, pendingMentorIds);
     }
 
     /**

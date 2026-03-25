@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Trade", description = "주문 내역 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 public class TradeOrderController {
 
     private final TradeOrderService tradeOrderService;

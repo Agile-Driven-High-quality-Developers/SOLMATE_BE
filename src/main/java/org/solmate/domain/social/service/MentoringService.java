@@ -133,18 +133,16 @@ public class MentoringService {
 
     /**
      * 멘토링 취소 (멘티만 가능)
-     * - PENDING(신청 대기 중) 또는 ACCEPTED(수락된 관계) 상태 모두 취소 가능
-     * - relation의 mentee_id가 현재 사용자와 다르면 403 → 멘토가 호출해도 여기서 차단됨
+     * - ACCEPTED(수락된 관계) 상태만 취소 가능
+     * - mentorUserId 기반으로 관계를 조회하므로 프론트에서 relationId 불필요
      */
     @Transactional
-    public void cancelMentoring(Long menteeId, Long relationId) {
-        MentoringRelation relation = mentoringRepository.findById(relationId)
+    public void cancelMentoring(Long menteeId, Long mentorUserId) {
+        MentoringRelation relation = mentoringRepository
+                .findByMenteeIdAndMentorIdAndStatusIn(menteeId, mentorUserId, List.of(MentoringStatus.ACCEPTED))
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new GeneralException(ErrorStatus.MENTORING_RELATION_NOT_FOUND));
-
-        // 본인(멘티)의 관계인지 확인 → 멘토가 호출하면 mentee_id != menteeId 이므로 차단
-        if (!relation.getMentee().getId().equals(menteeId)) {
-            throw new GeneralException(ErrorStatus.MENTORING_UNAUTHORIZED);
-        }
 
         // ACCEPTED 상태(이미 맺어진 멘토-멘티 관계)만 취소 가능
         if (relation.getStatus() != MentoringStatus.ACCEPTED) {

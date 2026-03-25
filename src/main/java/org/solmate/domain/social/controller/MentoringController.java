@@ -44,16 +44,16 @@ public class MentoringController {
 
     /**
      * 멘토링 취소 (멘티만 가능)
-     * - PENDING(신청 대기) 또는 ACCEPTED(수락된 관계) 상태 모두 취소 가능
-     * - 멘토가 호출하면 서비스 레이어에서 403 반환
+     * - ACCEPTED(수락된 관계) 상태만 취소 가능
+     * - mentorUserId 기반으로 관계를 조회하므로 프론트에서 relationId 불필요
      */
     @Operation(summary = "멘토링 취소")
-    @DeleteMapping("/mentor-requests/{relationId}")
+    @DeleteMapping("/mentor-requests/{mentorUserId}")
     public ResponseEntity<ApiResponse<Void>> cancelMentoring(
             @AuthenticationPrincipal Long menteeId,
-            @PathVariable Long relationId
+            @PathVariable Long mentorUserId
     ) {
-        mentoringService.cancelMentoring(menteeId, relationId);
+        mentoringService.cancelMentoring(menteeId, mentorUserId);
         return ApiResponse.success(SuccessStatus.MENTORING_CANCEL_SUCCESS, null);
     }
 }

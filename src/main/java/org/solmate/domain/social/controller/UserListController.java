@@ -3,6 +3,7 @@ package org.solmate.domain.social.controller;
 import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.social.dto.response.FollowListResponse;
+import org.solmate.domain.social.dto.response.MyProfileResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
 import org.solmate.domain.social.dto.response.UserProfileResponse;
 import org.solmate.domain.social.service.UserListService;
@@ -83,6 +84,18 @@ public class UserListController {
      * - 본인 조회 시 isMe=true, isFollowing=false
      * - 총 수익률 / 총 수익은 추후 구현 예정
      */
+    @Operation(
+            summary = "내 프로필 카드 조회",
+            description = "현재 로그인한 유저의 프로필을 조회합니다."
+    )
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<MyProfileResponse>> getMyProfile(
+            @AuthenticationPrincipal Long currentUserId
+    ) {
+        MyProfileResponse response = userListService.getMyProfile(currentUserId);
+        return ApiResponse.success(SuccessStatus.MY_PROFILE_SUCCESS, response);
+    }
+
     @Operation(
             summary = "유저 프로필 카드 조회",
             description = """

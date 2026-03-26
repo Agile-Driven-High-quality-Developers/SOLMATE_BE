@@ -9,6 +9,7 @@ import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.social.dto.response.FollowListItemResponse;
 import org.solmate.domain.social.dto.response.FollowListResponse;
+import org.solmate.domain.social.dto.response.MyProfileResponse;
 import org.solmate.domain.social.dto.response.UserListItemResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
 import org.solmate.domain.social.dto.response.UserProfileResponse;
@@ -120,17 +121,40 @@ public class UserListService {
     }
 
     /**
-     * 유저 프로필 단건 조회
+     * 내 프로필 조회
      *
      * - 탈퇴한 유저는 조회 불가 (USER_NOT_FOUND 예외)
-     * - 본인 프로필 조회 시 isMe=true, isFollowing=false, mentoringStatus=NONE
-     * - 타인 프로필 조회 시 현재 로그인 유저 기준으로 팔로우 여부 및 멘토링 상태 계산
      */
-    public UserProfileResponse getUserProfile(Long currentUserId, Long targetUserId) {
-        User target = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+    public MyProfileResponse getMyProfile(Long currentUserId) {
+        User me = userRepository.findByIdAndDeletedAtIsNull(currentUserId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        boolean isMe = currentUserId.equals(targetUserId);
+        long followerCount = followingRepository.countFollowersByUserIds(List.of(currentUserId)).stream()
+                .findFirst()
+                .map(arr -> (Long) arr[1])
+                .orElse(0L);
+
+        long followingCount = followingRepository.countFollowingByUserIds(List.of(currentUserId)).stream()
+                .findFirst()
+                .map(arr -> (Long) arr[1])
+                .orElse(0L);
+
+        return MyProfileResponse.of(me, followerCount, followingCount);
+    }
+
+    /**
+     * 타인 프로필 단건 조회
+     *
+     * - 본인 userId로 요청 시 403 반환 (USER_SELF_PROFILE_FORBIDDEN)
+     * - 탈퇴한 유저는 조회 불가 (USER_NOT_FOUND 예외)
+     */
+    public UserProfileResponse getUserProfile(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new GeneralException(ErrorStatus.USER_SELF_PROFILE_FORBIDDEN);
+        }
+
+        User target = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         // 대상 유저의 팔로워 수 (이 유저를 팔로우하는 사람 수)
         long followerCount = followingRepository.countFollowersByUserIds(List.of(targetUserId)).stream()
@@ -144,25 +168,21 @@ public class UserListService {
                 .map(arr -> (Long) arr[1])
                 .orElse(0L);
 
-        // 현재 로그인 유저가 대상 유저를 팔로우 중인지 (본인이면 항상 false)
-        boolean isFollowing = !isMe && followingIds(currentUserId).contains(targetUserId);
+        // 현재 로그인 유저가 대상 유저를 팔로우 중인지
+        boolean isFollowing = followingIds(currentUserId).contains(targetUserId);
 
-        // 현재 로그인 유저 기준 대상 유저와의 멘토링 상태
-        // 본인 프로필이면 NONE 고정, 타인이면 PENDING/ACCEPTED/NONE 중 하나
-        UserMentoringStatus mentoringStatus = UserMentoringStatus.NONE;
-        if (!isMe) {
-            List<MentoringRelation> relations = mentoringRepository.findByMenteeIdAndStatusIn(
-                    currentUserId, List.of(MentoringStatus.PENDING, MentoringStatus.ACCEPTED));
-            mentoringStatus = relations.stream()
-                    .filter(r -> r.getMentor().getId().equals(targetUserId))
-                    .findFirst()
-                    .map(r -> r.getStatus() == MentoringStatus.ACCEPTED
-                            ? UserMentoringStatus.ACCEPTED
-                            : UserMentoringStatus.PENDING)
-                    .orElse(UserMentoringStatus.NONE);
-        }
+        // 현재 로그인 유저 기준 대상 유저와의 멘토링 상태 (PENDING/ACCEPTED/NONE)
+        List<MentoringRelation> relations = mentoringRepository.findByMenteeIdAndStatusIn(
+                currentUserId, List.of(MentoringStatus.PENDING, MentoringStatus.ACCEPTED));
+        UserMentoringStatus mentoringStatus = relations.stream()
+                .filter(r -> r.getMentor().getId().equals(targetUserId))
+                .findFirst()
+                .map(r -> r.getStatus() == MentoringStatus.ACCEPTED
+                        ? UserMentoringStatus.ACCEPTED
+                        : UserMentoringStatus.PENDING)
+                .orElse(UserMentoringStatus.NONE);
 
-        return UserProfileResponse.of(target, followerCount, followingCount, isMe, isFollowing, mentoringStatus);
+        return UserProfileResponse.of(target, followerCount, followingCount, false, isFollowing, mentoringStatus);
     }
 
     /**

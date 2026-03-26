@@ -60,6 +60,7 @@ public enum SuccessStatus implements BaseStatus {
     USER_PROFILE_SUCCESS("USER_200_2", HttpStatus.OK, "유저 프로필 조회 성공"),
     FOLLOWER_LIST_SUCCESS("USER_200_3", HttpStatus.OK, "팔로워 목록 조회 성공"),
     FOLLOWING_LIST_SUCCESS("USER_200_4", HttpStatus.OK, "팔로잉 목록 조회 성공"),
+    MY_PROFILE_SUCCESS("USER_200_5", HttpStatus.OK, "내 프로필 조회 성공"),
 
 
     /**

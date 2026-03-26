@@ -81,6 +81,9 @@ public enum ErrorStatus implements BaseStatus {
     MENTORING_ALREADY_RESPONDED("MENTORING_400_3", HttpStatus.BAD_REQUEST, "이미 처리된 멘토링 요청입니다."),
     MENTORING_NOT_ACCEPTED("MENTORING_400_4", HttpStatus.BAD_REQUEST, "멘토링 관계가 아닙니다."),
 
+    USER_SELF_PROFILE_FORBIDDEN("USER_403_1", HttpStatus.FORBIDDEN, "본인 프로필은 /api/users/me 를 이용해주세요."),
+    USER_SELF_FOLLOW_LIST_FORBIDDEN("USER_403_2", HttpStatus.FORBIDDEN, "본인 팔로우 목록은 /api/users/me 를 이용해주세요."),
+
     /**
      * Follow
      */

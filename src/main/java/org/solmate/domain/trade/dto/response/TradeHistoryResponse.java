@@ -48,6 +48,7 @@ public record TradeHistoryResponse(
     public record PortfolioItem(
             String stockName,
             String stockLogo,
+            String tickerCode,
             String tradeType,
             String tradeTypeLabel,
             BigDecimal quantity,
@@ -80,6 +81,7 @@ public record TradeHistoryResponse(
             return new PortfolioItem(
                     trade.getStock().getStockName(),
                     stockLogo,
+                    trade.getStock().getTickerCode(),
                     trade.getTradeType().name(),
                     trade.getTradeType().getLabel(),
                     trade.getQuantity(),

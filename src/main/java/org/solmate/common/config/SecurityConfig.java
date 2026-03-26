@@ -45,6 +45,7 @@ public class SecurityConfig {
 				.requestMatchers("/static/**", "/*.html").permitAll()
 				.requestMatchers("/api/stocks/**").permitAll()
 				.requestMatchers("/api/admin/**").permitAll()
+					.requestMatchers("/actuator/health").permitAll()
 				.anyRequest().authenticated()
 			)
 			.sessionManagement(session ->

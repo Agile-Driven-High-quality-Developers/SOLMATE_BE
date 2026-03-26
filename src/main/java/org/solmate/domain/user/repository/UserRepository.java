@@ -21,9 +21,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // 탈퇴 유저 포함 조회 (댓글, 매매일지 작성자 표시를 위한..)
     Optional<User> findByEmail(String email);
 
-    // 유저 목록 커서 기반 페이지네이션 (첫 페이지)
-    List<User> findByDeletedAtIsNullOrderByIdAsc(Pageable pageable);
-
-    // 유저 목록 커서 기반 페이지네이션 (다음 페이지)
-    List<User> findByIdGreaterThanAndDeletedAtIsNullOrderByIdAsc(Long cursor, Pageable pageable);
+    // 유저 목록 전체 조회
+    List<User> findByDeletedAtIsNullOrderByIdAsc();
 }

@@ -37,36 +37,22 @@ public class UserListService {
     private final MentoringRepository mentoringRepository;
 
     /**
-     * 유저 목록 조회 (커서 기반 무한 스크롤)
+     * 유저 목록 전체 조회
      *
      * 처리 순서 (총 5번의 쿼리로 N+1 없이 처리):
-     *   ① 유저 목록 조회 (cursor 기반 - 첫 페이지면 cursor=null)
+     *   ① 전체 유저 목록 조회 (탈퇴 유저 제외)
      *   ② 내가 팔로우하는 유저 ID 목록 (팔로우 여부 일괄 확인)
      *   ③ 나의 멘토링 관계 일괄 조회 (PENDING + ACCEPTED)
      *   ④ 유저 ID 목록으로 팔로워 수 bulk 집계
      *   ⑤ 유저 ID 목록으로 팔로잉 수 bulk 집계
      *
-     * hasNext 판별:
-     *   size+1개를 조회해서 실제 size보다 많으면 다음 페이지가 있음
-     *   nextCursor는 현재 페이지 마지막 유저의 userId
-     *
      * hasAcceptedMentor:
      *   true이면 프론트에서 NONE 상태의 멘토신청 버튼을 모두 비활성화해야 함
      *   (이미 멘토가 있는 경우 추가 신청 불가)
      */
-    public UserListResponse getUserList(Long currentUserId, Long cursor, int size) {
-        // ① 유저 목록 조회 (size+1개 조회로 hasNext 판별)
-        List<User> users = cursor == null
-                ? userRepository.findByDeletedAtIsNullOrderByIdAsc(PageRequest.of(0, size + 1))
-                : userRepository.findByIdGreaterThanAndDeletedAtIsNullOrderByIdAsc(cursor, PageRequest.of(0, size + 1));
-
-        // size+1개가 왔으면 다음 페이지가 존재함 → 실제 반환은 size개만
-        boolean hasNext = users.size() > size;
-        if (hasNext) {
-            users = users.subList(0, size);
-        }
-        // 다음 페이지 커서 = 현재 페이지 마지막 유저의 userId (없으면 null)
-        Long nextCursor = hasNext ? users.get(users.size() - 1).getId() : null;
+    public UserListResponse getUserList(Long currentUserId) {
+        // ① 전체 유저 목록 조회 (탈퇴 유저 제외)
+        List<User> users = userRepository.findByDeletedAtIsNullOrderByIdAsc();
 
         List<Long> userIds = users.stream().map(User::getId).toList();
 
@@ -105,7 +91,6 @@ public class UserListService {
                 ));
 
         // 각 유저에 대해 소셜 정보를 조합하여 응답 생성
-        // 팔로워/팔로잉이 없는 유저는 0으로 기본값 처리
         List<UserListItemResponse> items = users.stream()
                 .map(user -> UserListItemResponse.of(
                         user,
@@ -117,7 +102,7 @@ public class UserListService {
                 ))
                 .toList();
 
-        return new UserListResponse(hasAcceptedMentor, items, nextCursor, hasNext);
+        return new UserListResponse(hasAcceptedMentor, items);
     }
 
     /**

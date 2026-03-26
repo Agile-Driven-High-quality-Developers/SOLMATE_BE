@@ -9,6 +9,8 @@ import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.social.dto.response.FollowListItemResponse;
 import org.solmate.domain.social.dto.response.FollowListResponse;
+import org.solmate.domain.social.dto.response.MyMenteeListResponse;
+import org.solmate.domain.social.dto.response.MyMentorResponse;
 import org.solmate.domain.social.dto.response.MyProfileResponse;
 import org.solmate.domain.social.dto.response.UserListItemResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
@@ -168,6 +170,36 @@ public class UserListService {
                 .orElse(UserMentoringStatus.NONE);
 
         return UserProfileResponse.of(target, followerCount, followingCount, false, isFollowing, mentoringStatus);
+    }
+
+    /**
+     * 내 멘토 조회
+     *
+     * - ACCEPTED 상태인 멘토링 관계에서 멘토 정보를 반환
+     * - 멘토가 없으면 hasMentor=false, 나머지 필드는 null 반환
+     */
+    public MyMentorResponse getMyMentor(Long currentUserId) {
+        return mentoringRepository
+                .findByMenteeIdAndStatus(currentUserId, MentoringStatus.ACCEPTED)
+                .map(r -> MyMentorResponse.of(r.getMentor()))
+                .orElse(MyMentorResponse.empty());
+    }
+
+    /**
+     * 내 멘티 목록 조회
+     *
+     * - 내가 멘토인 ACCEPTED 상태의 멘토링 관계에서 멘티 목록을 반환
+     * - 멘티가 없으면 hasMentee=false, mentees=[] 반환
+     */
+    public MyMenteeListResponse getMyMentees(Long currentUserId) {
+        List<MentoringRelation> relations = mentoringRepository
+                .findAllByMentorIdAndStatus(currentUserId, MentoringStatus.ACCEPTED);
+
+        List<User> mentees = relations.stream()
+                .map(MentoringRelation::getMentee)
+                .toList();
+
+        return MyMenteeListResponse.of(mentees);
     }
 
     /**

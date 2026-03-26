@@ -5,6 +5,8 @@ import org.solmate.common.response.ApiResponse;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.common.status.SuccessStatus;
 import org.solmate.domain.social.dto.response.FollowListResponse;
+import org.solmate.domain.social.dto.response.MyMenteeListResponse;
+import org.solmate.domain.social.dto.response.MyMentorResponse;
 import org.solmate.domain.social.dto.response.MyProfileResponse;
 import org.solmate.domain.social.dto.response.UserListResponse;
 import org.solmate.domain.social.dto.response.UserProfileResponse;
@@ -91,6 +93,42 @@ public class UserListController {
     ) {
         UserProfileResponse response = userListService.getUserProfile(currentUserId, userId);
         return ApiResponse.success(SuccessStatus.USER_PROFILE_SUCCESS, response);
+    }
+
+    @Operation(
+            summary = "내 멘토 조회",
+            description = """
+                    현재 로그인한 유저의 멘토를 조회합니다.
+
+                    **응답 필드**
+                    - hasMentor=true  → userId, nickname, imageUrl 포함
+                    - hasMentor=false → userId, nickname, imageUrl은 null
+                    """
+    )
+    @GetMapping("/me/mentor")
+    public ResponseEntity<ApiResponse<MyMentorResponse>> getMyMentor(
+            @AuthenticationPrincipal Long currentUserId
+    ) {
+        MyMentorResponse response = userListService.getMyMentor(currentUserId);
+        return ApiResponse.success(SuccessStatus.MY_MENTOR_SUCCESS, response);
+    }
+
+    @Operation(
+            summary = "내 멘티 목록 조회",
+            description = """
+                    현재 로그인한 유저의 멘티 목록을 조회합니다.
+
+                    **응답 필드**
+                    - hasMentee=true  → mentees 리스트에 멘티 정보 포함
+                    - hasMentee=false → mentees는 빈 리스트
+                    """
+    )
+    @GetMapping("/me/mentees")
+    public ResponseEntity<ApiResponse<MyMenteeListResponse>> getMyMentees(
+            @AuthenticationPrincipal Long currentUserId
+    ) {
+        MyMenteeListResponse response = userListService.getMyMentees(currentUserId);
+        return ApiResponse.success(SuccessStatus.MY_MENTEE_LIST_SUCCESS, response);
     }
 
     @Operation(

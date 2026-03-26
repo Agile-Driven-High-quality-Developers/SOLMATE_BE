@@ -1,6 +1,7 @@
 package org.solmate.domain.social.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.solmate.domain.social.entity.MentoringRelation;
 import org.solmate.domain.social.enums.MentoringStatus;
@@ -36,4 +37,10 @@ public interface MentoringRepository extends JpaRepository<MentoringRelation, Lo
     // 멘토링 취소 시 (menteeId, mentorId)로 관계 조회
     @Query("SELECT m FROM MentoringRelation m WHERE m.mentee.id = :menteeId AND m.mentor.id = :mentorId AND m.status IN :statuses")
     List<MentoringRelation> findByMenteeIdAndMentorIdAndStatusIn(@Param("menteeId") Long menteeId, @Param("mentorId") Long mentorId, @Param("statuses") List<MentoringStatus> statuses);
+
+    // 내 멘토 조회 (내가 멘티인 ACCEPTED 관계)
+    Optional<MentoringRelation> findByMenteeIdAndStatus(Long menteeId, MentoringStatus status);
+
+    // 내 멘티 목록 조회 (내가 멘토인 ACCEPTED 관계 전체)
+    List<MentoringRelation> findAllByMentorIdAndStatus(Long mentorId, MentoringStatus status);
 }

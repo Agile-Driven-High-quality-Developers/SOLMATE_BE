@@ -33,7 +33,7 @@ DOCKER_USERNAME=$DOCKER_USERNAME IMAGE_TAG=$IMAGE_TAG \
 
 # 헬스체크 (최대 60초 대기)
 echo "헬스체크 중..."
-for i in $(seq 1 12); do
+for i in $(seq 1 24); do
   sleep 5
   RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$NEW_PORT/actuator/health)
   if [ "$RESPONSE" == "200" ]; then
@@ -41,7 +41,7 @@ for i in $(seq 1 12); do
     break
   fi
   echo "대기 중... ($i/12)"
-  if [ $i -eq 12 ]; then
+  if [ $i -eq 24 ]; then
     echo "헬스체크 실패 - 배포 중단"
     docker compose stop $NEW_CONTAINER
     exit 1

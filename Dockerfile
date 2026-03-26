@@ -13,7 +13,7 @@ COPY src ./src
 RUN gradle build -x test --no-daemon
 
 # 2단계 - 실행
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 

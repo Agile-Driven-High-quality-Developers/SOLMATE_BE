@@ -38,6 +38,7 @@ public enum ErrorStatus implements BaseStatus {
     EMAIL_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
     EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
     NICKNAME_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
+    NICKNAME_SAME_AS_CURRENT("USER_400", HttpStatus.BAD_REQUEST, "현재 사용 중인 닉네임과 동일합니다."),
     EMAIL_NOT_VERIFIED("USER_400", HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다."),
     EMAIL_SEND_FAILED("USER_500", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 전송에 실패했습니다."),
 

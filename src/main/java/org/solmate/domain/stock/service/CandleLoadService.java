@@ -17,6 +17,7 @@ import org.solmate.domain.stock.entity.MinuteCandle;
 import org.solmate.external.ls.client.LsApiClient;
 import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
+import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,72 @@ public class CandleLoadService {
     }
 
     /**
+     * t8452 통합 1분봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
+     * exchgubun: "K"=KRX, "N"=NXT, "U"=통합
+     */
+    public boolean loadUnifiedMinuteCandles(String stockCode, String sdate, String edate, String exchgubun) {
+        List<MinuteCandle> candles = new ArrayList<>();
+
+        try {
+            LsUnifiedMinuteCandleResponse response =
+                    lsApiClient.getUnifiedMinuteCandles(stockCode, sdate, edate, exchgubun);
+            collectUnifiedMinuteCandles(response, stockCode, candles);
+
+            while (response.hasNext()) {
+                sleep();
+                String ctsDate = response.t8452OutBlock().cts_date();
+                String ctsTime = response.t8452OutBlock().cts_time();
+                response = lsApiClient.getUnifiedMinuteCandlesContinue(
+                        stockCode, sdate, edate, ctsDate, ctsTime, exchgubun);
+                collectUnifiedMinuteCandles(response, stockCode, candles);
+            }
+
+            saveMinuteCandles(candles, stockCode);
+            sleep();
+            return true;
+        } catch (Exception e) {
+            log.error("  ✗ [통합분봉 적재 실패] stockCode={}, exchgubun={} - {}", stockCode, exchgubun, e.getMessage());
+            return false;
+        }
+    }
+
+    private void collectUnifiedMinuteCandles(LsUnifiedMinuteCandleResponse response, String stockCode,
+                                              List<MinuteCandle> candles) {
+        if (response.candles().isEmpty()) return;
+
+        LsUnifiedMinuteCandleResponse.OutBlock1 first = response.candles().get(0);
+        LsUnifiedMinuteCandleResponse.OutBlock1 last  = response.candles().get(response.candles().size() - 1);
+        log.info("  [t8452 응답] 건수={}, 첫 봉={} {}, 마지막 봉={} {}",
+                response.candles().size(), first.date(), first.time(), last.date(), last.time());
+
+        // NXT 세션 시간 로깅 (첫 페이지에만 출력됨)
+        if (response.t8452OutBlock() != null) {
+            log.info("  [NXT 세션] 프리마켓={}-{}, 에프터마켓={}-{}",
+                    response.t8452OutBlock().nxt_fm_s_time(), response.t8452OutBlock().nxt_fm_e_time(),
+                    response.t8452OutBlock().nxt_am_s_time(), response.t8452OutBlock().nxt_am_e_time());
+        }
+
+        for (LsUnifiedMinuteCandleResponse.OutBlock1 item : response.candles()) {
+            try {
+                String timeStr = item.time().length() >= 6 ? item.time().substring(0, 6) : item.time();
+                LocalDateTime candleTime = LocalDateTime.parse(item.date() + timeStr, DATETIME_FMT);
+
+                candles.add(MinuteCandle.builder()
+                        .stockCode(stockCode)
+                        .openPrice(item.open())
+                        .highPrice(item.high())
+                        .lowPrice(item.low())
+                        .closePrice(item.close())
+                        .volume(item.jdiff_vol())
+                        .candleTime(candleTime)
+                        .build());
+            } catch (Exception e) {
+                log.warn("[통합분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
+            }
+        }
+    }
+
+    /**
      * 일봉 과거 데이터 적재
      * - sdate ~ edate 범위 (최근 365일 기준으로 호출)
      * - 연속조회로 전체 데이터 수집
@@ -105,9 +172,16 @@ public class CandleLoadService {
                                        List<MinuteCandle> candles) {
         if (response.t8412OutBlock1() == null) return;
 
-        for (LsMinuteCandleResponse.OutBlock1 item : response.t8412OutBlock1()) {
+        List<LsMinuteCandleResponse.OutBlock1> items = response.t8412OutBlock1();
+        if (!items.isEmpty()) {
+            LsMinuteCandleResponse.OutBlock1 first = items.get(0);
+            LsMinuteCandleResponse.OutBlock1 last  = items.get(items.size() - 1);
+            log.info("  [LS API 응답] 건수={}, 첫 봉={} {}, 마지막 봉={} {}",
+                    items.size(), first.date(), first.time(), last.date(), last.time());
+        }
+
+        for (LsMinuteCandleResponse.OutBlock1 item : items) {
             try {
-                // time 필드: HHMMSS 형식 (6자리) → 앞 4자리만 사용(HHMM)
                 String timeStr = item.time().length() >= 6 ? item.time().substring(0, 6) : item.time();
                 LocalDateTime candleTime = LocalDateTime.parse(item.date() + timeStr, DATETIME_FMT);
 

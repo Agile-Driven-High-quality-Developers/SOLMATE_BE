@@ -4,9 +4,11 @@ import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.request.LsDailyCandleRequest;
 import org.solmate.external.ls.dto.request.LsMinuteCandleRequest;
 import org.solmate.external.ls.dto.request.LsQuoteRequest;
+import org.solmate.external.ls.dto.request.LsUnifiedMinuteCandleRequest;
 import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
 import org.solmate.external.ls.dto.response.LsQuoteResponse;
+import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
 import org.solmate.external.ls.service.LsTokenService;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -60,6 +62,36 @@ public class LsApiClient {
                 .body(LsMinuteCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate, ctsTime))
                 .retrieve()
                 .body(LsMinuteCandleResponse.class);
+    }
+
+    /** t8452: 통합 1분봉 조회 (KRX+NXT, exchgubun: K/N/U) */
+    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandles(String stockCode, String sdate, String edate,
+                                                                   String exchgubun) {
+        return restClient.post()
+                .uri(lsProperties.getBaseUrl() + "/stock/chart")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("tr_cd", "t8452")
+                .header("tr_cont", "N")
+                .body(LsUnifiedMinuteCandleRequest.of(stockCode, sdate, edate, exchgubun))
+                .retrieve()
+                .body(LsUnifiedMinuteCandleResponse.class);
+    }
+
+    /** t8452: 통합 1분봉 연속 조회 */
+    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandlesContinue(String stockCode, String sdate, String edate,
+                                                                           String ctsDate, String ctsTime,
+                                                                           String exchgubun) {
+        return restClient.post()
+                .uri(lsProperties.getBaseUrl() + "/stock/chart")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("tr_cd", "t8452")
+                .header("tr_cont", "Y")
+                .header("tr_cont_key", ctsDate + ctsTime)
+                .body(LsUnifiedMinuteCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate, ctsTime, exchgubun))
+                .retrieve()
+                .body(LsUnifiedMinuteCandleResponse.class);
     }
 
     /** t8410: 일봉 조회 (처음 조회) */

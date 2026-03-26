@@ -1,9 +1,16 @@
 package org.solmate.domain.stock.scheduler;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 import org.solmate.domain.stock.service.CandleAccumulatorService;
+import org.solmate.domain.stock.service.CandleLoadService;
 import org.solmate.external.ls.websocket.LsWebSocketClient;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -13,11 +20,16 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@EnableAsync
 @EnableScheduling
 @RequiredArgsConstructor
 public class CandleScheduler {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     private final CandleAccumulatorService candleAccumulatorService;
+    private final CandleLoadService candleLoadService;
     private final LsWebSocketClient lsWebSocketClient;
 
     // 매 분 00초 - 1분봉 DB 저장
@@ -58,5 +70,36 @@ public class CandleScheduler {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
         log.debug("일봉 스케줄러 실행");
         codes.forEach(candleAccumulatorService::flushDailyCandle);
+    }
+
+    // 프리마켓 종료 후 08:51 - 어제 에프터마켓 + 오늘 프리마켓 백필 (ON CONFLICT DO NOTHING)
+    @Async
+    @Scheduled(cron = "0 51 8 * * MON-FRI")
+    public void backfillCandles() {
+        Set<String> codes = lsWebSocketClient.getSubscribedCodes();
+        if (codes.isEmpty()) return;
+
+        String yesterday = lastTradingDay(LocalDate.now(KST)).format(DATE_FMT);
+        String today     = LocalDate.now(KST).format(DATE_FMT);
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [분봉 백필 시작] 종목={}개, {}~{}", codes.size(), yesterday, today);
+        log.info("└─────────────────────────────────────────────");
+
+        int success = 0, fail = 0;
+        for (String code : codes) {
+            if (candleLoadService.loadUnifiedMinuteCandles(code, yesterday, today, "U")) success++;
+            else fail++;
+        }
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [분봉 백필 완료] 성공={}건, 실패={}건", success, fail);
+        log.info("└─────────────────────────────────────────────");
+    }
+
+    // 직전 영업일 계산 (월요일이면 금요일, 그 외는 어제)
+    private LocalDate lastTradingDay(LocalDate date) {
+        LocalDate prev = date.minusDays(1);
+        if (prev.getDayOfWeek() == DayOfWeek.SUNDAY)   return prev.minusDays(1); // 일 → 금
+        if (prev.getDayOfWeek() == DayOfWeek.SATURDAY) return prev.minusDays(1); // 토 → 금
+        return prev;
     }
 }

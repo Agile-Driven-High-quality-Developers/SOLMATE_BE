@@ -55,48 +55,50 @@ public class StockController {
 
     @Operation(
         summary = "분봉 조회",
-        description = "unit=1: 1분봉(DB 직접 조회) / unit=5|30|60: DB 1분봉 집계 + Redis 현재 봉. 오늘 장 시간(09:00~15:30) 기준."
+        description = "unit=1: 1분봉 / unit=5|30|60: DB 1분봉 집계 + Redis 현재 봉. " +
+                      "days 미지정 시 unit별 기본값 적용 (1분=5일, 5분=20일, 30분=60일, 60분=90일)"
     )
     @GetMapping("/{stockCode}/candles/minute")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
             @PathVariable String stockCode,
-            @RequestParam(defaultValue = "1") int unit) {
+            @RequestParam(defaultValue = "1") int unit,
+            @RequestParam(defaultValue = "0") int days) {
         if (unit != 1 && unit != 5 && unit != 30 && unit != 60) {
             throw new org.solmate.common.exception.GeneralException(
                     org.solmate.common.status.ErrorStatus.INVALID_CANDLE_UNIT);
         }
-        return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getMinuteCandles(stockCode, unit));
+        return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getMinuteCandles(stockCode, unit, days));
     }
 
-    @Operation(summary = "일봉 조회", description = "days 파라미터로 조회 기간 지정 (기본 30일)")
+    @Operation(summary = "일봉 조회", description = "days 미지정 시 365일")
     @GetMapping("/{stockCode}/candles/daily")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getDailyCandles(
             @PathVariable String stockCode,
-            @RequestParam(defaultValue = "30") int days) {
+            @RequestParam(defaultValue = "365") int days) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getDailyCandles(stockCode, days));
     }
 
-    @Operation(summary = "주봉 조회", description = "weeks 파라미터로 조회 기간 지정 (기본 52주). DB 일봉 집계.")
+    @Operation(summary = "주봉 조회", description = "weeks 미지정 시 260주(5년). DB 일봉 집계.")
     @GetMapping("/{stockCode}/candles/weekly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getWeeklyCandles(
             @PathVariable String stockCode,
-            @RequestParam(defaultValue = "52") int weeks) {
+            @RequestParam(defaultValue = "260") int weeks) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getWeeklyCandles(stockCode, weeks));
     }
 
-    @Operation(summary = "월봉 조회", description = "months 파라미터로 조회 기간 지정 (기본 60개월). DB 일봉 집계.")
+    @Operation(summary = "월봉 조회", description = "months 미지정 시 120개월(10년). DB 일봉 집계.")
     @GetMapping("/{stockCode}/candles/monthly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getMonthlyCandles(
             @PathVariable String stockCode,
-            @RequestParam(defaultValue = "60") int months) {
+            @RequestParam(defaultValue = "120") int months) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getMonthlyCandles(stockCode, months));
     }
 
-    @Operation(summary = "년봉 조회", description = "years 파라미터로 조회 기간 지정 (기본 10년). DB 일봉 집계.")
+    @Operation(summary = "년봉 조회", description = "years 미지정 시 20년. DB 일봉 집계.")
     @GetMapping("/{stockCode}/candles/yearly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getYearlyCandles(
             @PathVariable String stockCode,
-            @RequestParam(defaultValue = "10") int years) {
+            @RequestParam(defaultValue = "20") int years) {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getYearlyCandles(stockCode, years));
     }
 

@@ -2,7 +2,7 @@ package org.solmate.domain.stock.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CandleService {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     private final MinuteCandleRepository minuteCandleRepository;
@@ -34,17 +35,29 @@ public class CandleService {
      * unit=1  → DB minute_candle 직접 조회 + Redis 현재 1분봉
      * unit=5|30|60 → DB 1분봉 집계 + Redis 현재 N분봉
      */
-    public List<CandleResponse> getMinuteCandles(String stockCode, int unit) {
+    public List<CandleResponse> getMinuteCandles(String stockCode, int unit, int days) {
+        int effectiveDays = days > 0 ? days : defaultDaysForUnit(unit);
         if (unit == 1) {
-            return getOneMinuteCandles(stockCode);
+            return getOneMinuteCandles(stockCode, effectiveDays);
         }
-        return getAggregatedMinuteCandles(stockCode, unit);
+        return getAggregatedMinuteCandles(stockCode, unit, effectiveDays);
+    }
+
+    // unit별 기본 조회 일수 (days=0으로 요청 시 적용)
+    private int defaultDaysForUnit(int unit) {
+        return switch (unit) {
+            case 1  -> 5;   // 1분봉:  5 영업일  (~1,950개)
+            case 5  -> 20;  // 5분봉:  20 영업일 (~1,560개)
+            case 30 -> 60;  // 30분봉: 60 영업일 (~780개)
+            case 60 -> 90;  // 60분봉: 90 영업일 (~630개)
+            default -> 5;
+        };
     }
 
     // unit=1: DB minute_candle 직접 조회 + Redis 현재 봉
-    private List<CandleResponse> getOneMinuteCandles(String stockCode) {
-        LocalDateTime from = LocalDate.now().atTime(LocalTime.of(9, 0));
-        LocalDateTime to   = LocalDate.now().atTime(LocalTime.of(15, 30));
+    private List<CandleResponse> getOneMinuteCandles(String stockCode, int days) {
+        LocalDateTime from = LocalDate.now(KST).minusDays(days - 1).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).atTime(23, 59, 59);
 
         List<MinuteCandle> candles = minuteCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
@@ -60,9 +73,9 @@ public class CandleService {
     }
 
     // unit=5|30|60: DB 1분봉을 N분 단위로 집계 + Redis 현재 N분봉
-    private List<CandleResponse> getAggregatedMinuteCandles(String stockCode, int unit) {
-        LocalDateTime from = LocalDate.now().atTime(LocalTime.of(9, 0));
-        LocalDateTime to   = LocalDate.now().atTime(LocalTime.of(15, 30));
+    private List<CandleResponse> getAggregatedMinuteCandles(String stockCode, int unit, int days) {
+        LocalDateTime from = LocalDate.now(KST).minusDays(days - 1).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).atTime(23, 59, 59);
 
         List<MinuteCandle> oneMinCandles = minuteCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
@@ -86,8 +99,8 @@ public class CandleService {
 
     // 일봉 조회 (DB + 오늘 진행 중인 봉 포함)
     public List<CandleResponse> getDailyCandles(String stockCode, int days) {
-        LocalDateTime from = LocalDate.now().minusDays(days).atStartOfDay();
-        LocalDateTime to   = LocalDate.now().plusDays(1).atStartOfDay();
+        LocalDateTime from = LocalDate.now(KST).minusDays(days).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
 
         List<DailyCandle> candles = dailyCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
@@ -104,22 +117,22 @@ public class CandleService {
 
     // 주봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     public List<CandleResponse> getWeeklyCandles(String stockCode, int weeks) {
-        LocalDateTime from = LocalDate.now().minusWeeks(weeks).atStartOfDay();
-        LocalDateTime to   = LocalDate.now().plusDays(1).atStartOfDay();
+        LocalDateTime from = LocalDate.now(KST).minusWeeks(weeks).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
         return aggregateDailyCandles(stockCode, from, to, this::toWeekBucketStart);
     }
 
     // 월봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     public List<CandleResponse> getMonthlyCandles(String stockCode, int months) {
-        LocalDateTime from = LocalDate.now().minusMonths(months).atStartOfDay();
-        LocalDateTime to   = LocalDate.now().plusDays(1).atStartOfDay();
+        LocalDateTime from = LocalDate.now(KST).minusMonths(months).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
         return aggregateDailyCandles(stockCode, from, to, this::toMonthBucketStart);
     }
 
     // 년봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     public List<CandleResponse> getYearlyCandles(String stockCode, int years) {
-        LocalDateTime from = LocalDate.now().minusYears(years).atStartOfDay();
-        LocalDateTime to   = LocalDate.now().plusDays(1).atStartOfDay();
+        LocalDateTime from = LocalDate.now(KST).minusYears(years).atStartOfDay();
+        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
         return aggregateDailyCandles(stockCode, from, to, this::toYearBucketStart);
     }
 
@@ -219,13 +232,11 @@ public class CandleService {
         return date.withDayOfYear(1);
     }
 
-    // 장 시작(09:00) 기준 N분 단위 버킷 시작 시각 계산
+    // 절대 분 단위 버킷 시작 시각 계산 (프리/에프터 마켓 포함)
     private LocalDateTime toBucketStart(LocalDateTime candleTime, int unit) {
         int minuteOfDay = candleTime.getHour() * 60 + candleTime.getMinute();
-        int marketOpenMinute = 9 * 60;
-        int offset = minuteOfDay - marketOpenMinute;
-        int bucketOffset = (offset / unit) * unit;
-        return LocalDate.now().atTime(9, 0).plusMinutes(bucketOffset);
+        int bucketMinute = Math.floorDiv(minuteOfDay, unit) * unit;
+        return candleTime.toLocalDate().atTime(bucketMinute / 60, bucketMinute % 60);
     }
 
     // 1분봉 리스트를 하나의 N분봉으로 집계

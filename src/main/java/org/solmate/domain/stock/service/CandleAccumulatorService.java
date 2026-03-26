@@ -3,6 +3,7 @@ package org.solmate.domain.stock.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ public class CandleAccumulatorService {
             KEY_1MIN, KEY_5MIN, KEY_30MIN, KEY_60MIN, KEY_1DAY
     );
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     private final StringRedisTemplate redisTemplate;
@@ -44,7 +46,7 @@ public class CandleAccumulatorService {
 
     // 체결 수신 시 정규장 여부 확인 후 모든 봉 Redis 키 동시 업데이트
     public void accumulate(LsWsStockResponse.Body body) {
-        LocalTime now = LocalTime.now();
+        LocalTime now = LocalTime.now(KST);
         if (now.isBefore(MARKET_OPEN) || now.isAfter(MARKET_CLOSE)) return;
 
         String stockCode = body.shcode();
@@ -69,7 +71,7 @@ public class CandleAccumulatorService {
                     "low",       String.valueOf(price),
                     "close",     String.valueOf(price),
                     "volume",    String.valueOf(cvolume),
-                    "startTime", LocalDateTime.now().format(TIME_FORMATTER)
+                    "startTime", LocalDateTime.now(KST).format(TIME_FORMATTER)
             ));
         } else {
             long high   = Math.max(price, Long.parseLong((String) current.get("high")));
@@ -115,7 +117,7 @@ public class CandleAccumulatorService {
         if (data.isEmpty()) return;
 
         try {
-            LocalDateTime candleTime = LocalDate.now().atStartOfDay();
+            LocalDateTime candleTime = LocalDate.now(KST).atStartOfDay();
 
             DailyCandle candle = DailyCandle.builder()
                     .stockCode(stockCode)
@@ -157,7 +159,7 @@ public class CandleAccumulatorService {
             String startTime = (String) data.get("startTime");
             LocalDateTime candleTime = (startTime != null)
                     ? LocalDateTime.parse(startTime, TIME_FORMATTER)
-                    : LocalDateTime.now().withSecond(0).withNano(0);
+                    : LocalDateTime.now(KST).withSecond(0).withNano(0);
 
             MinuteCandle candle = MinuteCandle.builder()
                     .stockCode(stockCode)

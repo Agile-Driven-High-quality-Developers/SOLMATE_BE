@@ -39,6 +39,15 @@ public class UserService {
         }
     }
 
+    public void checkNicknameForUser(Long userId, String nickname) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+        if (nickname.equals(user.getNickname())) {
+            throw new GeneralException(ErrorStatus.NICKNAME_SAME_AS_CURRENT);
+        }
+        checkNicknameNotDuplicated(nickname);
+    }
+
     public void checkPassword(Long userId, String rawPassword) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
@@ -99,6 +108,10 @@ public class UserService {
         }
 
         if (nickname != null && !nickname.isBlank()) {
+
+            if (nickname.equals(user.getNickname())) {
+                throw new GeneralException(ErrorStatus.NICKNAME_SAME_AS_CURRENT);
+            }
             checkNicknameNotDuplicated(nickname);
             user.updateNickname(nickname);
         }

@@ -1,0 +1,39 @@
+services:
+  app-8080:
+    image: ${DOCKER_USERNAME}/solmate-be:${IMAGE_TAG}
+    container_name: app-8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - /home/ubuntu/app/application.yml:/app/application.yml
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/application.yml
+    restart: unless-stopped
+    networks:
+      - solmate-network
+
+  app-8081:
+    image: ${DOCKER_USERNAME}/solmate-be:${IMAGE_TAG}
+    container_name: app-8081
+    ports:
+      - "8081:8080"
+    volumes:
+      - /home/ubuntu/app/application.yml:/app/application.yml
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/application.yml
+    restart: unless-stopped
+    networks:
+      - solmate-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+    networks:
+      - solmate-network
+
+networks:
+  solmate-network:
+    driver: bridge

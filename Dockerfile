@@ -1,5 +1,5 @@
 # 1단계 - 빌드
-FROM gradle:8.5-jdk17 AS builder
+FROM gradle:8.14 AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY src ./src
 RUN gradle build -x test --no-daemon
 
 # 2단계 - 실행
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 

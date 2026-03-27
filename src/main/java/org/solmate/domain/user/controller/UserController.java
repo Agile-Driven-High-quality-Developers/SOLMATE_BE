@@ -43,12 +43,18 @@ public class UserController {
         return ApiResponse.success(SuccessStatus.PASSWORD_CHECK_SUCCESS, null);
     }
 
-    @Operation(summary = "회원 탈퇴", description = "현재 비밀번호 확인 후 회원 탈퇴 처리합니다. (soft delete)")
+    @Operation(
+            summary = "회원 탈퇴",
+            description = """
+                    회원 탈퇴를 처리합니다. (soft delete)
+
+                    **이메일 로그인 유저:** `password` 필드 필수 — 비밀번호 불일치 시 `400` 반환
+                    **구글 로그인 유저:** `password` 필드 불필요 — 빈 body(`{}`) 또는 password 없이 요청""")
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> withdraw(
             @AuthenticationPrincipal Long userId,
-            @RequestBody @Valid WithdrawRequest request) {
-        userService.withdrawWithPassword(userId, request.password());
+            @RequestBody WithdrawRequest request) {
+        userService.withdraw(userId, request.password());
         return ApiResponse.success(SuccessStatus.WITHDRAW_SUCCESS, null);
     }
 

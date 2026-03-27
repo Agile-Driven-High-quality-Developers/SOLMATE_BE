@@ -10,6 +10,7 @@ import org.solmate.domain.stock.dto.response.StockQuoteResponse;
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.solmate.domain.stock.entity.Stock;
 import org.solmate.domain.stock.repository.DailyCandleRepository;
+import org.solmate.domain.stock.enums.SectorType;
 import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.external.ls.client.LsApiClient;
 import org.solmate.external.ls.dto.response.LsQuoteResponse;
@@ -49,10 +50,10 @@ public class StockService {
 
     public StockQuoteResponse getQuote(String stockCode) {
         LsQuoteResponse response = lsApiClient.getQuote(stockCode);
-        String stockLogo = stockRepository.findByTickerCode(stockCode)
-                .map(stock -> stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null)
-                .orElse(null);
-        return StockQuoteResponse.from(response, stockLogo);
+        Stock stock = stockRepository.findByTickerCode(stockCode).orElse(null);
+        String stockLogo = stock != null && stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
+        SectorType sectorType = stock != null ? stock.getSectorType() : null;
+        return StockQuoteResponse.from(response, stockLogo, sectorType);
     }
 
     @Transactional

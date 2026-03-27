@@ -89,4 +89,8 @@ public class TradeHistory extends BaseEntity {
     public void updateStatus(TradeStatus tradeStatus) {
         this.tradeStatus = tradeStatus;
     }
+
+    public void updateFilledPrice(BigDecimal filledPrice) {
+        this.price = filledPrice;
+    }
 }

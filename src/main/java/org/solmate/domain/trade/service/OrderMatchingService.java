@@ -108,6 +108,7 @@ public class OrderMatchingService {
 
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
+                    tradeHistory.updateFilledPrice(currentPrice);
 
                     // TradeDiary 상태 업데이트
                     tradeDiaryRepository.findByTradeHistoryId(orderId)
@@ -172,6 +173,7 @@ public class OrderMatchingService {
 
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
+                    tradeHistory.updateFilledPrice(currentPrice);
 
                     // TradeDiary 상태 업데이트
                     tradeDiaryRepository.findByTradeHistoryId(orderId)

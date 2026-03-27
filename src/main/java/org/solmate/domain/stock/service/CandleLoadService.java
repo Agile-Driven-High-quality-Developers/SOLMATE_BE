@@ -125,7 +125,7 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                log.warn("[통합분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
+                // log.warn("[통합분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
             }
         }
     }
@@ -195,7 +195,7 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                log.warn("[분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
+                // log.warn("[분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
             }
         }
     }
@@ -218,7 +218,7 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                log.warn("[일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
+                // log.warn("[일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
             }
         }
     }

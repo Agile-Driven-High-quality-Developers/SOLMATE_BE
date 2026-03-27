@@ -7,6 +7,8 @@ import java.util.stream.Collectors;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.auth.enums.OAuthProvider;
+import org.solmate.domain.auth.repository.LoginTypeRepository;
 import org.solmate.domain.social.dto.response.FollowListItemResponse;
 import org.solmate.domain.social.dto.response.FollowListResponse;
 import org.solmate.domain.social.dto.response.MyMenteeListResponse;
@@ -37,6 +39,7 @@ public class UserListService {
     private final UserRepository userRepository;
     private final FollowingRepository followingRepository;
     private final MentoringRepository mentoringRepository;
+    private final LoginTypeRepository loginTypeRepository;
 
     /**
      * 유저 목록 전체 조회
@@ -126,7 +129,11 @@ public class UserListService {
                 .map(arr -> (Long) arr[1])
                 .orElse(0L);
 
-        return MyProfileResponse.of(me, followerCount, followingCount);
+        OAuthProvider provider = loginTypeRepository.existsByUserAndLoginType(me, OAuthProvider.GOOGLE)
+                ? OAuthProvider.GOOGLE
+                : OAuthProvider.EMAIL;
+
+        return MyProfileResponse.of(me, followerCount, followingCount, provider);
     }
 
     /**

@@ -3,6 +3,8 @@ package org.solmate.domain.user.service;
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
+import org.solmate.domain.auth.enums.OAuthProvider;
+import org.solmate.domain.auth.repository.LoginTypeRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +22,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final S3Service s3Service;
     private final PasswordEncoder passwordEncoder;
+    private final LoginTypeRepository loginTypeRepository;
 
 
     public User getUserByEmail(String email) {
@@ -68,12 +71,19 @@ public class UserService {
 
 
     @Transactional
-    public void withdrawWithPassword(Long userId, String rawPassword) {
+    public void withdraw(Long userId, String rawPassword) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
+        boolean isGoogleUser = loginTypeRepository.existsByUserAndLoginType(user, OAuthProvider.GOOGLE);
+
+        if (!isGoogleUser) {
+            if (rawPassword == null || rawPassword.isBlank()) {
+                throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
+            }
+            if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+                throw new GeneralException(ErrorStatus.INVALID_PASSWORD);
+            }
         }
 
         if (user.getImageUrl() != null) {

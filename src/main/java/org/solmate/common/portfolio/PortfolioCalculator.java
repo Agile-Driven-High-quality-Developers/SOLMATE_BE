@@ -30,20 +30,14 @@ public class PortfolioCalculator {
     private final TradeHistoryRepository tradeHistoryRepository;
     private final StringRedisTemplate redisTemplate;
 
-    // 실제 보유 현금 = Account.cash(매수 선차감 반영) + PENDING BUY 금액
+    // 주문 가능 금액 = Account.cash (매수 선차감 반영된 실제 잔액)
     @Transactional(readOnly = true)
     public BigDecimal getCash(Long userId) {
         BigDecimal cash = accountRepository.findByUserId(userId)
                 .map(Account::getCash)
                 .orElse(BigDecimal.ZERO);
 
-        BigDecimal pendingBuyAmount = tradeHistoryRepository
-                .findPendingByUserIdAndTradeType(userId, TradeType.BUY)
-                .stream()
-                .map(t -> t.getPrice().multiply(t.getQuantity()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return cash.add(pendingBuyAmount).setScale(0, RoundingMode.HALF_UP);
+        return cash.setScale(0, RoundingMode.HALF_UP);
     }
 
     // 종목별 평가금액 (실제 보유 수량 = Holdings.quantity + PENDING SELL)

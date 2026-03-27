@@ -6,6 +6,8 @@ import org.solmate.common.jwt.JwtProvider;
 import org.solmate.domain.auth.dto.response.GoogleInfoResponse;
 import org.solmate.domain.auth.dto.response.GoogleTokenResponse;
 import org.solmate.domain.auth.dto.response.LoginResponse;
+import org.solmate.common.exception.GeneralException;
+import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.auth.entity.LoginType;
 import org.solmate.domain.auth.entity.Token;
 import org.solmate.domain.auth.enums.OAuthProvider;
@@ -122,6 +124,12 @@ public class GoogleService {
 
     private User findOrCreateUser(GoogleInfoResponse googleInfo, String providerToken) {
         return userRepository.findByEmail(googleInfo.email())
+                .map(user -> {
+                    if (!loginTypeRepository.existsByUserAndLoginType(user, OAuthProvider.GOOGLE)) {
+                        throw new GeneralException(ErrorStatus.EMAIL_REGISTERED_WITH_EMAIL);
+                    }
+                    return user;
+                })
                 .orElseGet(() -> createGoogleUser(googleInfo, providerToken));
     }
 

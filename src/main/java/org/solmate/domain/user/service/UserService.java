@@ -31,9 +31,12 @@ public class UserService {
     }
 
     public void checkEmailNotDuplicated(String email) {
-        if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
+        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
+            if (loginTypeRepository.existsByUserAndLoginType(user, OAuthProvider.GOOGLE)) {
+                throw new GeneralException(ErrorStatus.EMAIL_REGISTERED_WITH_GOOGLE);
+            }
             throw new GeneralException(ErrorStatus.EMAIL_ALREADY_EXISTS);
-        }
+        });
     }
 
     public void checkNicknameNotDuplicated(String nickname) {

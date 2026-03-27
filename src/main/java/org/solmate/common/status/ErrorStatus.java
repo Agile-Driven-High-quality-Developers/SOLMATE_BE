@@ -37,6 +37,8 @@ public enum ErrorStatus implements BaseStatus {
     USER_ALREADY_WITHDRAWN("USER_400", HttpStatus.BAD_REQUEST, "이미 탈퇴한 유저입니다."),
     EMAIL_NOT_FOUND("USER_404", HttpStatus.NOT_FOUND, "존재하지 않는 이메일입니다."),
     EMAIL_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
+    EMAIL_REGISTERED_WITH_EMAIL("USER_409_1", HttpStatus.CONFLICT, "이미 이메일로 가입된 계정입니다. 이메일 로그인을 이용해 주세요."),
+    EMAIL_REGISTERED_WITH_GOOGLE("USER_409_2", HttpStatus.CONFLICT, "이미 구글로 가입된 계정입니다. 구글 로그인을 이용해 주세요."),
     NICKNAME_ALREADY_EXISTS("USER_409", HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
     NICKNAME_SAME_AS_CURRENT("USER_400", HttpStatus.BAD_REQUEST, "현재 사용 중인 닉네임과 동일합니다."),
     EMAIL_NOT_VERIFIED("USER_400", HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다."),

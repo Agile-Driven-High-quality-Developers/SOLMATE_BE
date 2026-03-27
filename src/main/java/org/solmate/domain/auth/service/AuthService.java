@@ -53,9 +53,9 @@ public class AuthService {
 
     // 회원가입
     public void signUp(SignUpRequest request) {
-        emailVerificationService.isEmailVerified(request.email());
         userService.checkEmailNotDuplicated(request.email());
         userService.checkNicknameNotDuplicated(request.nickname());
+        emailVerificationService.isEmailVerified(request.email());
 
         User user = User.builder()
                 .email(request.email())

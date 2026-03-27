@@ -11,7 +11,6 @@ public record TradeDiaryListResponse(
     Long diaryId,
     String tradeType,
     String stockName,
-    String tickerCode,
     BigDecimal filledPrice,
     BigDecimal quantity,
     BigDecimal profit,       // 수익금 (매도일 때만, 매수는 null)
@@ -39,7 +38,6 @@ public record TradeDiaryListResponse(
             diary.getId(),
             tradeHistory.getTradeType().name(),
             tradeHistory.getStock().getStockName(),
-            tradeHistory.getStock().getTickerCode(),
             tradeHistory.getPrice(),
             tradeHistory.getQuantity(),
             profit,

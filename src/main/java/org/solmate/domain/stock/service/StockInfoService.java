@@ -59,7 +59,8 @@ public class StockInfoService {
         for (int i = 0; i < stockCodes.size(); i++) {
             Object val = results.get(i);
             if (val != null) {
-                priceMap.put(stockCodes.get(i), new BigDecimal(val.toString()));
+                String priceStr = val instanceof byte[] ? new String((byte[]) val) : val.toString();
+                priceMap.put(stockCodes.get(i), new BigDecimal(priceStr));
             }
         }
         return priceMap;

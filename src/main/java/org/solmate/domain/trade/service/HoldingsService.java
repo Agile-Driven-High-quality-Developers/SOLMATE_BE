@@ -2,12 +2,14 @@ package org.solmate.domain.trade.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.portfolio.PortfolioCalculator;
 import org.solmate.common.s3.S3Service;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.stock.dto.response.StockHoldingResponse;
+import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.domain.trade.dto.response.HoldingsResponse;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
@@ -29,13 +31,20 @@ public class HoldingsService {
     private final PortfolioCalculator portfolioCalculator;
     private final StringRedisTemplate redisTemplate;
     private final S3Service s3Service;
+    private final StockInfoService stockInfoService;
 
     @Transactional(readOnly = true)
     public List<HoldingsResponse> getHoldings(Long userId) {
         List<Holdings> holdings = holdingsRepository.findByUserId(userId);
+        Map<String, BigDecimal> prices = stockInfoService.getCurrentPriceBulk(
+                holdings.stream().map(Holdings::getTickerCode).toList());
 
         return holdings.stream()
-            .map(h -> HoldingsResponse.of(h, getCurrentPrice(h.getTickerCode()), s3Service))
+            .map(h -> {
+                BigDecimal price = prices.get(h.getTickerCode());
+                if (price == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
+                return HoldingsResponse.of(h, price, s3Service);
+            })
             .toList();
     }
 
@@ -43,9 +52,15 @@ public class HoldingsService {
     @Transactional(readOnly = true)
     public List<HoldingsResponse> getProfileHoldings(Long userId) {
         List<Holdings> holdings = holdingsRepository.findByUserId(userId);
+        Map<String, BigDecimal> prices = stockInfoService.getCurrentPriceBulk(
+                holdings.stream().map(Holdings::getTickerCode).toList());
 
         return holdings.stream()
-            .map(h -> HoldingsResponse.ofProfile(h, getCurrentPrice(h.getTickerCode()), s3Service))
+            .map(h -> {
+                BigDecimal price = prices.get(h.getTickerCode());
+                if (price == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
+                return HoldingsResponse.ofProfile(h, price, s3Service);
+            })
             .toList();
     }
 

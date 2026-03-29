@@ -1,6 +1,7 @@
 package org.solmate.domain.stock.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,20 +33,26 @@ public class StockService {
     private final S3Service s3Service;
 
     public List<StockListResponse> getStockList() {
-        return stockRepository.findAll().stream()
-                .map(stock -> {
-                    String logoUrl = stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
-                    Map<Object, Object> redisInfo = stockInfoService.getStockInfo(stock.getTickerCode());
-                    if (redisInfo.isEmpty()) {
-                        long closePrice = dailyCandleRepository
-                                .findTopByStockCodeOrderByCandleTimeDesc(stock.getTickerCode())
-                                .map(DailyCandle::getClosePrice)
-                                .orElse(0L);
-                        return StockListResponse.ofWithClosePrice(stock, closePrice, logoUrl);
-                    }
-                    return StockListResponse.of(stock, redisInfo, logoUrl);
-                })
-                .toList();
+        List<Stock> stocks = stockRepository.findAll();
+        List<String> tickerCodes = stocks.stream().map(Stock::getTickerCode).toList();
+        List<Map<Object, Object>> redisInfoList = stockInfoService.getStockInfoBulk(tickerCodes);
+
+        List<StockListResponse> responses = new ArrayList<>();
+        for (int i = 0; i < stocks.size(); i++) {
+            Stock stock = stocks.get(i);
+            String logoUrl = stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
+            Map<Object, Object> redisInfo = redisInfoList.get(i);
+            if (redisInfo.isEmpty()) {
+                long closePrice = dailyCandleRepository
+                        .findTopByStockCodeOrderByCandleTimeDesc(stock.getTickerCode())
+                        .map(DailyCandle::getClosePrice)
+                        .orElse(0L);
+                responses.add(StockListResponse.ofWithClosePrice(stock, closePrice, logoUrl));
+            } else {
+                responses.add(StockListResponse.of(stock, redisInfo, logoUrl));
+            }
+        }
+        return responses;
     }
 
     public StockQuoteResponse getQuote(String stockCode) {

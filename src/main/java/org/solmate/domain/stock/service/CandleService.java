@@ -16,6 +16,7 @@ import org.solmate.domain.stock.entity.MinuteCandle;
 import org.solmate.domain.stock.repository.DailyCandleRepository;
 import org.solmate.domain.stock.repository.MinuteCandleRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,6 +36,7 @@ public class CandleService {
      * unit=1  → DB minute_candle 직접 조회 + Redis 현재 1분봉
      * unit=5|30|60 → DB 1분봉 집계 + Redis 현재 N분봉
      */
+    @Transactional(readOnly = true)
     public List<CandleResponse> getMinuteCandles(String stockCode, int unit, int days) {
         int effectiveDays = days > 0 ? days : defaultDaysForUnit(unit);
         if (unit == 1) {
@@ -98,6 +100,7 @@ public class CandleService {
     }
 
     // 일봉 조회 (DB + 오늘 진행 중인 봉 포함)
+    @Transactional(readOnly = true)
     public List<CandleResponse> getDailyCandles(String stockCode, int days) {
         LocalDateTime from = LocalDate.now(KST).minusDays(days).atStartOfDay();
         LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
@@ -116,6 +119,7 @@ public class CandleService {
     }
 
     // 주봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
+    @Transactional(readOnly = true)
     public List<CandleResponse> getWeeklyCandles(String stockCode, int weeks) {
         LocalDateTime from = LocalDate.now(KST).minusWeeks(weeks).atStartOfDay();
         LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
@@ -123,6 +127,7 @@ public class CandleService {
     }
 
     // 월봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
+    @Transactional(readOnly = true)
     public List<CandleResponse> getMonthlyCandles(String stockCode, int months) {
         LocalDateTime from = LocalDate.now(KST).minusMonths(months).atStartOfDay();
         LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
@@ -130,6 +135,7 @@ public class CandleService {
     }
 
     // 년봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
+    @Transactional(readOnly = true)
     public List<CandleResponse> getYearlyCandles(String stockCode, int years) {
         LocalDateTime from = LocalDate.now(KST).minusYears(years).atStartOfDay();
         LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();

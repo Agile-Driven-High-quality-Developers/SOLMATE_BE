@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.time.ZoneId;
 
 import javax.sql.DataSource;
 
@@ -14,9 +16,11 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.solmate.domain.stock.entity.MinuteCandle;
+import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.external.ls.client.LsApiClient;
 import org.solmate.external.ls.dto.response.LsUnifiedDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -27,11 +31,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CandleLoadService {
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter DATE_FMT     = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final LsApiClient lsApiClient;
     private final DataSource dataSource;
+    private final StockRepository stockRepository;
 
     /**
      * t8452 통합 1분봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
@@ -143,6 +149,69 @@ public class CandleLoadService {
                 // log.warn("[통합일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
             }
         }
+    }
+
+    /** 전체 종목 일괄 적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    @Async
+    public void loadAllAsync(int minuteDays, int dailyDays) {
+        List<String> codes = stockRepository.findAllTickerCodes();
+        int total = codes.size();
+        String today      = LocalDate.now(KST).format(DATE_FMT);
+        String minuteFrom = LocalDate.now(KST).minusDays(minuteDays).format(DATE_FMT);
+        String dailyFrom  = LocalDate.now(KST).minusDays(dailyDays).format(DATE_FMT);
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 시작] 종목={}개, 분봉={}일, 일봉={}일", total, minuteDays, dailyDays);
+        log.info("└─────────────────────────────────────────────");
+
+        AtomicInteger minuteSuccess = new AtomicInteger(), minuteFail = new AtomicInteger();
+        AtomicInteger dailySuccess  = new AtomicInteger(), dailyFail  = new AtomicInteger();
+
+        for (int i = 0; i < codes.size(); i++) {
+            String code = codes.get(i);
+            log.info("[{}/{}] 적재 중: {}", i + 1, total, code);
+            if (loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess.incrementAndGet();
+            else minuteFail.incrementAndGet();
+            if (loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess.incrementAndGet();
+            else dailyFail.incrementAndGet();
+        }
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
+    }
+
+    /** 실패 종목 재적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    @Async
+    public void retryAsync(List<String> stockCodes, int minuteDays, int dailyDays) {
+        int total = stockCodes.size();
+        String today      = LocalDate.now(KST).format(DATE_FMT);
+        String minuteFrom = LocalDate.now(KST).minusDays(minuteDays).format(DATE_FMT);
+        String dailyFrom  = LocalDate.now(KST).minusDays(dailyDays).format(DATE_FMT);
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 시작] 종목={}개", total);
+        log.info("└─────────────────────────────────────────────");
+
+        AtomicInteger minuteSuccess = new AtomicInteger(), minuteFail = new AtomicInteger();
+        AtomicInteger dailySuccess  = new AtomicInteger(), dailyFail  = new AtomicInteger();
+
+        for (int i = 0; i < stockCodes.size(); i++) {
+            String code = stockCodes.get(i);
+            log.info("[{}/{}] 재적재 중: {}", i + 1, total, code);
+            if (loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess.incrementAndGet();
+            else minuteFail.incrementAndGet();
+            if (loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess.incrementAndGet();
+            else dailyFail.incrementAndGet();
+        }
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
     }
 
     /** LS API rate limit 준수를 위한 대기 (2000ms, WebSocket 호출과 합산 고려) */

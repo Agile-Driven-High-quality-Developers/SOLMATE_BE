@@ -35,7 +35,7 @@ public class TradeOrderService {
     private final AccountRepository accountRepository;
     private final HoldingsRepository holdingsRepository;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void cancelOrder(Long userId, Long orderId) {

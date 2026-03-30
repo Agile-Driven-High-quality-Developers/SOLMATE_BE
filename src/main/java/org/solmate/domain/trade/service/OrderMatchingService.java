@@ -47,7 +47,7 @@ public class OrderMatchingService {
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private static final String ORDER_LOCK_PREFIX = "lock:order:";
     private static final long LOCK_EXPIRE_SECONDS = 5;

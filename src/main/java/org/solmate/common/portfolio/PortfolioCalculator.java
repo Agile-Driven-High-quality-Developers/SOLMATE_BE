@@ -5,11 +5,14 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.account.entity.Account;
 import org.solmate.domain.account.repository.AccountRepository;
+import org.solmate.domain.stock.service.StockInfoService;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeType;
@@ -29,6 +32,7 @@ public class PortfolioCalculator {
     private final HoldingsRepository holdingsRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
     private final StringRedisTemplate redisTemplate;
+    private final StockInfoService stockInfoService;
 
     // 주문 가능 금액 = Account.cash (매수 선차감 반영된 실제 잔액)
     @Transactional(readOnly = true)
@@ -44,25 +48,33 @@ public class PortfolioCalculator {
     @Transactional(readOnly = true)
     public List<PortfolioHoldingLine> getHoldingEvaluationLines(Long userId) {
         List<Holdings> holdingsList = holdingsRepository.findByUserId(userId);
+        if (holdingsList.isEmpty()) return List.of();
+
+        // DB N+1 제거: PENDING SELL 전체를 한 번에 조회 후 메모리에서 그룹핑
+        Map<String, BigDecimal> pendingSellMap = tradeHistoryRepository
+                .findPendingByUserIdAndTradeTypeWithStock(userId, TradeType.SELL)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        t -> t.getStock().getTickerCode(),
+                        Collectors.reducing(BigDecimal.ZERO, TradeHistory::getQuantity, BigDecimal::add)));
+
+        // Redis N+1 제거: 현재가 일괄 조회
+        List<String> tickerCodes = holdingsList.stream().map(Holdings::getTickerCode).toList();
+        Map<String, BigDecimal> prices = stockInfoService.getCurrentPriceBulk(tickerCodes);
+
         List<PortfolioHoldingLine> lines = new ArrayList<>();
-
         for (Holdings h : holdingsList) {
-            BigDecimal pendingSellQuantity = tradeHistoryRepository
-                    .findPendingByUserIdAndTickerCodeAndTradeType(userId, h.getTickerCode(), TradeType.SELL)
-                    .stream()
-                    .map(TradeHistory::getQuantity)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+            BigDecimal pendingSellQuantity = pendingSellMap.getOrDefault(h.getTickerCode(), BigDecimal.ZERO);
             BigDecimal totalQuantity = h.getQuantity().add(pendingSellQuantity);
-            if (totalQuantity.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
+            if (totalQuantity.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            BigDecimal evaluation = getCurrentPrice(h.getTickerCode()).multiply(totalQuantity);
+            BigDecimal price = prices.get(h.getTickerCode());
+            if (price == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
+
             lines.add(new PortfolioHoldingLine(
                     h.getTickerCode(),
                     h.getStock().getStockName(),
-                    evaluation));
+                    price.multiply(totalQuantity)));
         }
 
         lines.sort(Comparator.comparing(PortfolioHoldingLine::evaluation).reversed());

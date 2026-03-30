@@ -51,7 +51,7 @@ public class TradeService {
     private final TradeDiaryRepository tradeDiaryRepository;
     private final StringRedisTemplate redisTemplate;
     private final S3Service s3Service;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public OrderResponse buyOrder(Long userId, BuyOrderRequest request) {

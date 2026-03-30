@@ -8,6 +8,7 @@ import org.solmate.external.ls.dto.websocket.LsWsCurrencyResponse;
 import org.solmate.external.ls.dto.websocket.LsWsIndexResponse;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -15,13 +16,14 @@ import org.springframework.stereotype.Service;
 public class MarketIndicatorService {
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private static final String KOSPI_KEY = "market:indicator:KOSPI";
     private static final String KOSDAQ_KEY = "market:indicator:KOSDAQ";
     private static final String USD_KRW_KEY = "market:indicator:USD_KRW";
 
     // 조회
+    @Transactional(readOnly = true)
     public MarketIndicatorResponse getMarketIndicators() {
         return MarketIndicatorResponse.builder()
                 .kospi(getIndexInfo(KOSPI_KEY))

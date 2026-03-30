@@ -66,11 +66,7 @@ public class CandleAccumulatorService {
         accumulateKey(KEY_5MIN  + stockCode, price, cvolume);
         accumulateKey(KEY_30MIN + stockCode, price, cvolume);
         accumulateKey(KEY_60MIN + stockCode, price, cvolume);
-
-        // 일봉은 정규장(09:00~15:30)만 누적
-        if (isRegularMarket) {
-            accumulateKey(KEY_1DAY  + stockCode, price, cvolume);
-        }
+        accumulateKey(KEY_1DAY  + stockCode, price, cvolume);
     }
 
     // Redis 키에 체결가/거래량 누적 (첫 체결이면 open 세팅, 이후엔 high/low/close/volume 갱신)

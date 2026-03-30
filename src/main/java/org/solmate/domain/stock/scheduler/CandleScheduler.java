@@ -64,8 +64,8 @@ public class CandleScheduler {
         codes.forEach(candleAccumulatorService::flush60MinCandle);
     }
 
-    // 장 마감 15:30 - 일봉 DB 저장
-    @Scheduled(cron = "0 30 15 * * MON-FRI")
+    // 에프터마켓 종료 20:00 - 일봉 DB 저장
+    @Scheduled(cron = "0 0 20 * * MON-FRI")
     public void flushDailyCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
         log.debug("일봉 스케줄러 실행");

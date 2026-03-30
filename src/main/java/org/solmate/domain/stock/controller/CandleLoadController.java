@@ -63,7 +63,7 @@ public class CandleLoadController {
             log.info("[{}/{}] 적재 중: {}", i + 1, total, code);
             if (candleLoadService.loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess++;
             else minuteFail++;
-            if (candleLoadService.loadDailyCandles(code, dailyFrom, today)) dailySuccess++;
+            if (candleLoadService.loadDailyFromMinuteCandles(code, dailyFrom, today)) dailySuccess++;
             else dailyFail++;
         }
 
@@ -152,7 +152,7 @@ public class CandleLoadController {
             log.info("[{}/{}] 재적재 중: {}", i + 1, stockCodes.size(), code);
             if (candleLoadService.loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess++;
             else minuteFail++;
-            if (candleLoadService.loadDailyCandles(code, dailyFrom, today)) dailySuccess++;
+            if (candleLoadService.loadDailyFromMinuteCandles(code, dailyFrom, today)) dailySuccess++;
             else dailyFail++;
         }
 

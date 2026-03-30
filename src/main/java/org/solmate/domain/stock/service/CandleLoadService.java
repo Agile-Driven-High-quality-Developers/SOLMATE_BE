@@ -6,7 +6,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -14,6 +17,7 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.solmate.domain.stock.entity.MinuteCandle;
+import org.solmate.domain.stock.repository.MinuteCandleRepository;
 import org.solmate.external.ls.client.LsApiClient;
 import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
@@ -33,6 +37,7 @@ public class CandleLoadService {
 
     private final LsApiClient lsApiClient;
     private final DataSource dataSource;
+    private final MinuteCandleRepository minuteCandleRepository;
 
     /**
      * 1분봉 과거 데이터 적재
@@ -155,6 +160,48 @@ public class CandleLoadService {
             return true;
         } catch (Exception e) {
             log.error("  ✗ [일봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 통합 일봉 적재 - DB의 통합 분봉(t8452)을 날짜별로 집계하여 daily_candle에 저장
+     * loadUnifiedMinuteCandles() 호출 후 사용해야 분봉 데이터가 존재함
+     */
+    public boolean loadDailyFromMinuteCandles(String stockCode, String sdate, String edate) {
+        try {
+            LocalDateTime from = LocalDate.parse(sdate, DATE_FMT).atStartOfDay();
+            LocalDateTime to   = LocalDate.parse(edate, DATE_FMT).atTime(23, 59, 59);
+
+            List<MinuteCandle> minuteCandles = minuteCandleRepository
+                    .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+
+            if (minuteCandles.isEmpty()) return true;
+
+            Map<LocalDate, List<MinuteCandle>> byDate = minuteCandles.stream()
+                    .collect(Collectors.groupingBy(
+                            c -> c.getCandleTime().toLocalDate(),
+                            LinkedHashMap::new,
+                            Collectors.toList()));
+
+            List<DailyCandle> dailyCandles = new ArrayList<>();
+            for (Map.Entry<LocalDate, List<MinuteCandle>> entry : byDate.entrySet()) {
+                List<MinuteCandle> day = entry.getValue();
+                dailyCandles.add(DailyCandle.builder()
+                        .stockCode(stockCode)
+                        .openPrice(day.get(0).getOpenPrice())
+                        .highPrice(day.stream().mapToLong(MinuteCandle::getHighPrice).max().orElse(0))
+                        .lowPrice(day.stream().mapToLong(MinuteCandle::getLowPrice).min().orElse(0))
+                        .closePrice(day.get(day.size() - 1).getClosePrice())
+                        .volume(day.stream().mapToLong(MinuteCandle::getVolume).sum())
+                        .candleTime(entry.getKey().atStartOfDay())
+                        .build());
+            }
+
+            saveDailyCandles(dailyCandles, stockCode);
+            return true;
+        } catch (Exception e) {
+            log.error("  ✗ [통합일봉 집계 실패] stockCode={} - {}", stockCode, e.getMessage());
             return false;
         }
     }

@@ -72,26 +72,28 @@ public class CandleScheduler {
         codes.forEach(candleAccumulatorService::flushDailyCandle);
     }
 
-    // 프리마켓 종료 후 08:51 - 어제 에프터마켓 + 오늘 프리마켓 백필 (ON CONFLICT DO NOTHING)
+    // 매일 오전 07:00 - 전 영업일 분봉/일봉 백필 (서버 다운 등으로 누락된 데이터 보정)
     @Async
-    @Scheduled(cron = "0 51 8 * * MON-FRI")
+    @Scheduled(cron = "0 0 7 * * MON-FRI")
     public void backfillCandles() {
         Set<String> codes = lsWebSocketClient.getSubscribedCodes();
         if (codes.isEmpty()) return;
 
         String yesterday = lastTradingDay(LocalDate.now(KST)).format(DATE_FMT);
-        String today     = LocalDate.now(KST).format(DATE_FMT);
         log.info("┌─────────────────────────────────────────────");
-        log.info("│ [분봉 백필 시작] 종목={}개, {}~{}", codes.size(), yesterday, today);
+        log.info("│ [캔들 백필 시작] 종목={}개, 대상={}", codes.size(), yesterday);
         log.info("└─────────────────────────────────────────────");
 
-        int success = 0, fail = 0;
+        int minuteSuccess = 0, minuteFail = 0, dailySuccess = 0, dailyFail = 0;
         for (String code : codes) {
-            if (candleLoadService.loadUnifiedMinuteCandles(code, yesterday, today, "U")) success++;
-            else fail++;
+            if (candleLoadService.loadUnifiedMinuteCandles(code, yesterday, yesterday, "U")) minuteSuccess++;
+            else minuteFail++;
+            if (candleLoadService.loadUnifiedDailyCandles(code, yesterday, yesterday)) dailySuccess++;
+            else dailyFail++;
         }
         log.info("┌─────────────────────────────────────────────");
-        log.info("│ [분봉 백필 완료] 성공={}건, 실패={}건", success, fail);
+        log.info("│ [캔들 백필 완료] 분봉 성공={}건/실패={}건, 일봉 성공={}건/실패={}건",
+                minuteSuccess, minuteFail, dailySuccess, dailyFail);
         log.info("└─────────────────────────────────────────────");
     }
 

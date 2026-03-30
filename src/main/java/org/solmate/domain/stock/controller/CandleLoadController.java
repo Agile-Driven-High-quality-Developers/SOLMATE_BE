@@ -76,8 +76,9 @@ public class CandleLoadController {
     }
 
     @Operation(
-            summary = "특정 종목 캔들 단건 적재 (t8412, 정규장만)",
-            description = "특정 종목의 분봉/일봉을 LS t8412 API로 적재합니다. 정규장(09:00~15:30)만 제공됩니다. "
+            summary = "특정 종목 캔들 단건 적재 (t8452/t8451, 통합)",
+            description = "특정 종목의 분봉/일봉을 통합 API(t8452/t8451)로 적재합니다. "
+                        + "KRX+NXT 통합 데이터이며 프리마켓(08:00~08:50), 에프터마켓(15:40~20:00) 포함. "
                         + "DB에 이미 존재하는 데이터는 자동으로 스킵됩니다."
     )
     @PostMapping("/stock/{stockCode}")
@@ -94,7 +95,7 @@ public class CandleLoadController {
         log.info("└─────────────────────────────────────────────");
 
         if (minute) {
-            boolean ok = candleLoadService.loadMinuteCandles(stockCode, sdate, edate);
+            boolean ok = candleLoadService.loadUnifiedMinuteCandles(stockCode, sdate, edate, "U");
             log.info("│ 분봉 적재 {}", ok ? "완료" : "실패");
         }
         if (daily) {

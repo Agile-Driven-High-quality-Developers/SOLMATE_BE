@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.time.ZoneId;
 
 import javax.sql.DataSource;
 
@@ -14,10 +16,11 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.solmate.domain.stock.entity.MinuteCandle;
+import org.solmate.domain.stock.repository.StockRepository;
 import org.solmate.external.ls.client.LsApiClient;
-import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
-import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
+import org.solmate.external.ls.dto.response.LsUnifiedDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -28,41 +31,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CandleLoadService {
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter DATE_FMT     = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final LsApiClient lsApiClient;
     private final DataSource dataSource;
-
-    /**
-     * 1분봉 과거 데이터 적재
-     * - sdate ~ edate 범위 (최근 3영업일 기준으로 호출)
-     * - 연속조회로 전체 데이터 수집
-     * - 호출 후 200ms 대기 (LS API 초당 1건 rate limit 준수)
-     */
-    public boolean loadMinuteCandles(String stockCode, String sdate, String edate) {
-        List<MinuteCandle> candles = new ArrayList<>();
-
-        try {
-            LsMinuteCandleResponse response = lsApiClient.getMinuteCandles(stockCode, sdate, edate);
-            collectMinuteCandles(response, stockCode, candles);
-
-            while (response.hasNext()) {
-                sleep();
-                String ctsDate = response.t8412OutBlock().cts_date();
-                String ctsTime = response.t8412OutBlock().cts_time();
-                response = lsApiClient.getMinuteCandlesContinue(stockCode, sdate, edate, ctsDate, ctsTime);
-                collectMinuteCandles(response, stockCode, candles);
-            }
-
-            saveMinuteCandles(candles, stockCode);
-            sleep();
-            return true;
-        } catch (Exception e) {
-            log.error("  ✗ [분봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
-            return false;
-        }
-    }
+    private final StockRepository stockRepository;
 
     /**
      * t8452 통합 1분봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
@@ -131,83 +106,36 @@ public class CandleLoadService {
     }
 
     /**
-     * 일봉 과거 데이터 적재
-     * - sdate ~ edate 범위 (최근 365일 기준으로 호출)
-     * - 연속조회로 전체 데이터 수집
-     * - 호출 후 200ms 대기 (LS API 초당 1건 rate limit 준수)
+     * t8451: 통합 일봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
      */
-    public boolean loadDailyCandles(String stockCode, String sdate, String edate) {
+    public boolean loadUnifiedDailyCandles(String stockCode, String sdate, String edate) {
         List<DailyCandle> candles = new ArrayList<>();
 
         try {
-            LsDailyCandleResponse response = lsApiClient.getDailyCandles(stockCode, sdate, edate);
-            collectDailyCandles(response, stockCode, candles);
+            LsUnifiedDailyCandleResponse response = lsApiClient.getUnifiedDailyCandles(stockCode, sdate, edate);
+            collectUnifiedDailyCandles(response, stockCode, candles);
 
             while (response.hasNext()) {
                 sleep();
-                String ctsDate = response.t8410OutBlock().cts_date();
-                response = lsApiClient.getDailyCandlesContinue(stockCode, sdate, edate, ctsDate);
-                collectDailyCandles(response, stockCode, candles);
+                String ctsDate = response.t8451OutBlock().cts_date();
+                response = lsApiClient.getUnifiedDailyCandlesContinue(stockCode, sdate, edate, ctsDate);
+                collectUnifiedDailyCandles(response, stockCode, candles);
             }
 
             saveDailyCandles(candles, stockCode);
             sleep();
             return true;
         } catch (Exception e) {
-            log.error("  ✗ [일봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
+            log.error("  ✗ [통합일봉 적재 실패] stockCode={} - {}", stockCode, e.getMessage());
             return false;
         }
     }
 
-    /** LS API rate limit 준수를 위한 대기 (2000ms, WebSocket 호출과 합산 고려) */
-    private void sleep() {
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void collectMinuteCandles(LsMinuteCandleResponse response, String stockCode,
-                                       List<MinuteCandle> candles) {
-        if (response.t8412OutBlock1() == null) return;
-
-        List<LsMinuteCandleResponse.OutBlock1> items = response.t8412OutBlock1();
-        if (!items.isEmpty()) {
-            LsMinuteCandleResponse.OutBlock1 first = items.get(0);
-            LsMinuteCandleResponse.OutBlock1 last  = items.get(items.size() - 1);
-            log.info("  [LS API 응답] 건수={}, 첫 봉={} {}, 마지막 봉={} {}",
-                    items.size(), first.date(), first.time(), last.date(), last.time());
-        }
-
-        for (LsMinuteCandleResponse.OutBlock1 item : items) {
-            try {
-                String timeStr = item.time().length() >= 6 ? item.time().substring(0, 6) : item.time();
-                LocalDateTime candleTime = LocalDateTime.parse(item.date() + timeStr, DATETIME_FMT);
-
-                candles.add(MinuteCandle.builder()
-                        .stockCode(stockCode)
-                        .openPrice(item.open())
-                        .highPrice(item.high())
-                        .lowPrice(item.low())
-                        .closePrice(item.close())
-                        .volume(item.jdiff_vol())
-                        .candleTime(candleTime)
-                        .build());
-            } catch (Exception e) {
-                // log.warn("[분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
-            }
-        }
-    }
-
-    private void collectDailyCandles(LsDailyCandleResponse response, String stockCode,
-                                      List<DailyCandle> candles) {
-        if (response.t8410OutBlock1() == null) return;
-
-        for (LsDailyCandleResponse.OutBlock1 item : response.t8410OutBlock1()) {
+    private void collectUnifiedDailyCandles(LsUnifiedDailyCandleResponse response, String stockCode,
+                                             List<DailyCandle> candles) {
+        for (LsUnifiedDailyCandleResponse.OutBlock1 item : response.candles()) {
             try {
                 LocalDateTime candleTime = LocalDate.parse(item.date(), DATE_FMT).atStartOfDay();
-
                 candles.add(DailyCandle.builder()
                         .stockCode(stockCode)
                         .openPrice(item.open())
@@ -218,8 +146,80 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                // log.warn("[일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
+                // log.warn("[통합일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
             }
+        }
+    }
+
+    /** 전체 종목 일괄 적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    @Async
+    public void loadAllAsync(int minuteDays, int dailyDays) {
+        List<String> codes = stockRepository.findAllTickerCodes();
+        int total = codes.size();
+        String today      = LocalDate.now(KST).format(DATE_FMT);
+        String minuteFrom = LocalDate.now(KST).minusDays(minuteDays).format(DATE_FMT);
+        String dailyFrom  = LocalDate.now(KST).minusDays(dailyDays).format(DATE_FMT);
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 시작] 종목={}개, 분봉={}일, 일봉={}일", total, minuteDays, dailyDays);
+        log.info("└─────────────────────────────────────────────");
+
+        AtomicInteger minuteSuccess = new AtomicInteger(), minuteFail = new AtomicInteger();
+        AtomicInteger dailySuccess  = new AtomicInteger(), dailyFail  = new AtomicInteger();
+
+        for (int i = 0; i < codes.size(); i++) {
+            String code = codes.get(i);
+            log.info("[{}/{}] 적재 중: {}", i + 1, total, code);
+            if (loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess.incrementAndGet();
+            else minuteFail.incrementAndGet();
+            if (loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess.incrementAndGet();
+            else dailyFail.incrementAndGet();
+        }
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 일괄 적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
+    }
+
+    /** 실패 종목 재적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    @Async
+    public void retryAsync(List<String> stockCodes, int minuteDays, int dailyDays) {
+        int total = stockCodes.size();
+        String today      = LocalDate.now(KST).format(DATE_FMT);
+        String minuteFrom = LocalDate.now(KST).minusDays(minuteDays).format(DATE_FMT);
+        String dailyFrom  = LocalDate.now(KST).minusDays(dailyDays).format(DATE_FMT);
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 시작] 종목={}개", total);
+        log.info("└─────────────────────────────────────────────");
+
+        AtomicInteger minuteSuccess = new AtomicInteger(), minuteFail = new AtomicInteger();
+        AtomicInteger dailySuccess  = new AtomicInteger(), dailyFail  = new AtomicInteger();
+
+        for (int i = 0; i < stockCodes.size(); i++) {
+            String code = stockCodes.get(i);
+            log.info("[{}/{}] 재적재 중: {}", i + 1, total, code);
+            if (loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess.incrementAndGet();
+            else minuteFail.incrementAndGet();
+            if (loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess.incrementAndGet();
+            else dailyFail.incrementAndGet();
+        }
+
+        log.info("┌─────────────────────────────────────────────");
+        log.info("│ [캔들 재적재 완료]");
+        log.info("│ 분봉: 성공 {}건 / 실패 {}건", minuteSuccess, minuteFail);
+        log.info("│ 일봉: 성공 {}건 / 실패 {}건", dailySuccess, dailyFail);
+        log.info("└─────────────────────────────────────────────");
+    }
+
+    /** LS API rate limit 준수를 위한 대기 (2000ms, WebSocket 호출과 합산 고려) */
+    private void sleep() {
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

@@ -53,7 +53,7 @@ public class TradeService {
     private final StringRedisTemplate redisTemplate;
     private final S3Service s3Service;
     private final SimpMessagingTemplate messagingTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public OrderResponse buyOrder(Long userId, BuyOrderRequest request) {
@@ -126,7 +126,7 @@ public class TradeService {
         Stock stock = stockRepository.findByTickerCode(request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.STOCK_NOT_FOUND));
 
-        Holdings holdings = holdingsRepository.findByUserAndTickerCode(user, request.ticker())
+        Holdings holdings = holdingsRepository.findByUserAndTickerCodeWithLock(user, request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS));
 
         // 보유 수량 검증

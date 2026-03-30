@@ -1,8 +1,10 @@
 package org.solmate.domain.stock.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.solmate.common.s3.S3Service;
 import org.solmate.domain.stock.dto.response.StockListResponse;
@@ -31,23 +33,41 @@ public class StockService {
     private final DailyCandleRepository dailyCandleRepository;
     private final S3Service s3Service;
 
+    @Transactional(readOnly = true)
     public List<StockListResponse> getStockList() {
-        return stockRepository.findAll().stream()
-                .map(stock -> {
-                    String logoUrl = stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
-                    Map<Object, Object> redisInfo = stockInfoService.getStockInfo(stock.getTickerCode());
-                    if (redisInfo.isEmpty()) {
-                        long closePrice = dailyCandleRepository
-                                .findTopByStockCodeOrderByCandleTimeDesc(stock.getTickerCode())
-                                .map(DailyCandle::getClosePrice)
-                                .orElse(0L);
-                        return StockListResponse.ofWithClosePrice(stock, closePrice, logoUrl);
-                    }
-                    return StockListResponse.of(stock, redisInfo, logoUrl);
-                })
-                .toList();
+        List<Stock> stocks = stockRepository.findAll();
+        List<String> tickerCodes = stocks.stream().map(Stock::getTickerCode).toList();
+        List<Map<Object, Object>> redisInfoList = stockInfoService.getStockInfoBulk(tickerCodes);
+
+        // Redis 데이터 없는 종목 코드 수집
+        List<String> missingCodes = new ArrayList<>();
+        for (int i = 0; i < stocks.size(); i++) {
+            if (redisInfoList.get(i).isEmpty()) {
+                missingCodes.add(stocks.get(i).getTickerCode());
+            }
+        }
+
+        // DB N+1 제거: 최근 일봉을 한 번에 조회
+        Map<String, Long> closePriceMap = missingCodes.isEmpty() ? Map.of() :
+                dailyCandleRepository.findLatestByStockCodes(missingCodes).stream()
+                        .collect(Collectors.toMap(DailyCandle::getStockCode, DailyCandle::getClosePrice));
+
+        List<StockListResponse> responses = new ArrayList<>();
+        for (int i = 0; i < stocks.size(); i++) {
+            Stock stock = stocks.get(i);
+            String logoUrl = stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
+            Map<Object, Object> redisInfo = redisInfoList.get(i);
+            if (redisInfo.isEmpty()) {
+                long closePrice = closePriceMap.getOrDefault(stock.getTickerCode(), 0L);
+                responses.add(StockListResponse.ofWithClosePrice(stock, closePrice, logoUrl));
+            } else {
+                responses.add(StockListResponse.of(stock, redisInfo, logoUrl));
+            }
+        }
+        return responses;
     }
 
+    @Transactional(readOnly = true)
     public StockQuoteResponse getQuote(String stockCode) {
         LsQuoteResponse response = lsApiClient.getQuote(stockCode);
         Stock stock = stockRepository.findByTickerCode(stockCode).orElse(null);

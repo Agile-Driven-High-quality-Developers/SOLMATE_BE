@@ -1,5 +1,9 @@
 package org.solmate.domain.stock.service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.solmate.external.ls.dto.websocket.LsWsStockResponse;
@@ -20,6 +24,46 @@ public class StockInfoService {
 
     public Map<Object, Object> getStockInfo(String stockCode) {
         return redisTemplate.opsForHash().entries(INFO_KEY_PREFIX + stockCode);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<Object, Object>> getStockInfoBulk(List<String> stockCodes) {
+        List<Object> results = redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            for (String code : stockCodes) {
+                byte[] key = (INFO_KEY_PREFIX + code).getBytes();
+                connection.hashCommands().hGetAll(key);
+            }
+            return null;
+        });
+
+        List<Map<Object, Object>> mapped = new ArrayList<>(results.size());
+        for (Object result : results) {
+            mapped.add(result instanceof Map ? (Map<Object, Object>) result : Map.of());
+        }
+        return mapped;
+    }
+
+    public Map<String, BigDecimal> getCurrentPriceBulk(List<String> stockCodes) {
+        List<Object> results = redisTemplate.executePipelined(
+                (org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                    for (String code : stockCodes) {
+                        connection.hashCommands().hGet(
+                                (INFO_KEY_PREFIX + code).getBytes(),
+                                "cur".getBytes()
+                        );
+                    }
+                    return null;
+                });
+
+        Map<String, BigDecimal> priceMap = new HashMap<>();
+        for (int i = 0; i < stockCodes.size(); i++) {
+            Object val = results.get(i);
+            if (val != null) {
+                String priceStr = val instanceof byte[] ? new String((byte[]) val) : val.toString();
+                priceMap.put(stockCodes.get(i), new BigDecimal(priceStr));
+            }
+        }
+        return priceMap;
     }
 
     public void update(LsWsStockResponse.Body body) {

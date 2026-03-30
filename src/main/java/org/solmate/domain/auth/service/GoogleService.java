@@ -92,7 +92,7 @@ public class GoogleService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return new LoginResponse(user.getNickname(), accessToken, refreshToken);
+        return new LoginResponse(user.getId(), user.getNickname(), accessToken, refreshToken);
     }
 
 

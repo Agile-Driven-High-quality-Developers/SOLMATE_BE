@@ -8,6 +8,7 @@ import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.notification.dto.response.NotificationCountResponse;
 import org.solmate.domain.notification.dto.response.NotificationResponse;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.solmate.domain.notification.entity.Notification;
 import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.enums.NotificationType;
@@ -34,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     private final MentoringService mentoringService;
     private final MentoringRepository mentoringRepository;
     private final UserRepository userRepository;
@@ -192,6 +194,9 @@ public class NotificationService {
             .toList();
 
         notificationRepository.saveAll(notifications);
+
+        notifications.forEach(n ->
+            messagingTemplate.convertAndSend("/topic/notifications/" + n.getUser().getId(), NotificationResponse.of(n)));
     }
 
     public NotificationCountResponse getUnreadCount(Long userId) {

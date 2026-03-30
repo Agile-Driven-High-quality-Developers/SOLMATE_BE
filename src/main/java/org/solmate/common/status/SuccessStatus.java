@@ -66,6 +66,13 @@ public enum SuccessStatus implements BaseStatus {
 
 
     /**
+     * Watchlist
+     */
+    WATCHLIST_ADD_SUCCESS("WATCHLIST_201", HttpStatus.CREATED, "관심종목 추가 성공"),
+    WATCHLIST_REMOVE_SUCCESS("WATCHLIST_200", HttpStatus.OK, "관심종목 제거 성공"),
+    WATCHLIST_GET_SUCCESS("WATCHLIST_200_1", HttpStatus.OK, "관심종목 목록 조회 성공"),
+
+    /**
      * Admin
      */
     MARKET_CAP_UPDATE_SUCCESS("ADMIN_200", HttpStatus.OK, "시가총액 업데이트 성공");

@@ -94,6 +94,12 @@ public enum ErrorStatus implements BaseStatus {
     FOLLOW_NOT_FOUND("FOLLOW_404", HttpStatus.NOT_FOUND, "팔로우 관계를 찾을 수 없습니다."),
 
     /**
+     * Watchlist
+     */
+    WATCHLIST_ALREADY_EXISTS("WATCHLIST_409", HttpStatus.CONFLICT, "이미 관심종목에 추가된 종목입니다."),
+    WATCHLIST_NOT_FOUND("WATCHLIST_404", HttpStatus.NOT_FOUND, "관심종목에 없는 종목입니다."),
+
+    /**
      * Admin
      */
     MARKET_CAP_UPDATE_FAILED("ADMIN_500", HttpStatus.INTERNAL_SERVER_ERROR, "시가총액 업데이트에 실패했습니다.");

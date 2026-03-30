@@ -31,6 +31,7 @@ import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +52,7 @@ public class TradeService {
     private final TradeDiaryRepository tradeDiaryRepository;
     private final StringRedisTemplate redisTemplate;
     private final S3Service s3Service;
+    private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -111,7 +113,9 @@ public class TradeService {
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:buy:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
-        return OrderResponse.of(tradeHistory);
+        OrderResponse response = OrderResponse.of(tradeHistory);
+        messagingTemplate.convertAndSend("/topic/trades/" + userId, response);
+        return response;
     }
 
     @Transactional
@@ -173,7 +177,9 @@ public class TradeService {
         // Redis ZSet에 주문 추가
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
-        return OrderResponse.of(tradeHistory);
+        OrderResponse response = OrderResponse.of(tradeHistory);
+        messagingTemplate.convertAndSend("/topic/trades/" + userId, response);
+        return response;
     }
 
     @Transactional(readOnly = true)

@@ -1,4 +1,4 @@
-﻿package org.solmate.domain.trade.service;
+package org.solmate.domain.trade.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

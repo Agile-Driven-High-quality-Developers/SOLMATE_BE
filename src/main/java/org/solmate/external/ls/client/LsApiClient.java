@@ -4,10 +4,12 @@ import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.request.LsDailyCandleRequest;
 import org.solmate.external.ls.dto.request.LsMinuteCandleRequest;
 import org.solmate.external.ls.dto.request.LsQuoteRequest;
+import org.solmate.external.ls.dto.request.LsUnifiedDailyCandleRequest;
 import org.solmate.external.ls.dto.request.LsUnifiedMinuteCandleRequest;
 import org.solmate.external.ls.dto.response.LsDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsMinuteCandleResponse;
 import org.solmate.external.ls.dto.response.LsQuoteResponse;
+import org.solmate.external.ls.dto.response.LsUnifiedDailyCandleResponse;
 import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
 import org.solmate.external.ls.service.LsTokenService;
 import org.springframework.http.MediaType;
@@ -92,6 +94,34 @@ public class LsApiClient {
                 .body(LsUnifiedMinuteCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate, ctsTime, exchgubun))
                 .retrieve()
                 .body(LsUnifiedMinuteCandleResponse.class);
+    }
+
+    /** t8451: 통합 일봉 조회 (KRX+NXT, 처음 조회) */
+    public LsUnifiedDailyCandleResponse getUnifiedDailyCandles(String stockCode, String sdate, String edate) {
+        return restClient.post()
+                .uri(lsProperties.getBaseUrl() + "/stock/chart")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("tr_cd", "t8451")
+                .header("tr_cont", "N")
+                .body(LsUnifiedDailyCandleRequest.of(stockCode, sdate, edate))
+                .retrieve()
+                .body(LsUnifiedDailyCandleResponse.class);
+    }
+
+    /** t8451: 통합 일봉 연속 조회 */
+    public LsUnifiedDailyCandleResponse getUnifiedDailyCandlesContinue(String stockCode, String sdate, String edate,
+                                                                        String ctsDate) {
+        return restClient.post()
+                .uri(lsProperties.getBaseUrl() + "/stock/chart")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("tr_cd", "t8451")
+                .header("tr_cont", "Y")
+                .header("tr_cont_key", ctsDate)
+                .body(LsUnifiedDailyCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate))
+                .retrieve()
+                .body(LsUnifiedDailyCandleResponse.class);
     }
 
     /** t8410: 일봉 조회 (처음 조회) */

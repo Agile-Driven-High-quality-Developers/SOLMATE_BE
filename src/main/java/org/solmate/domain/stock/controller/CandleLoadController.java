@@ -63,7 +63,7 @@ public class CandleLoadController {
             log.info("[{}/{}] 적재 중: {}", i + 1, total, code);
             if (candleLoadService.loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess++;
             else minuteFail++;
-            if (candleLoadService.loadDailyFromMinuteCandles(code, dailyFrom, today)) dailySuccess++;
+            if (candleLoadService.loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess++;
             else dailyFail++;
         }
 
@@ -98,7 +98,7 @@ public class CandleLoadController {
             log.info("│ 분봉 적재 {}", ok ? "완료" : "실패");
         }
         if (daily) {
-            boolean ok = candleLoadService.loadDailyCandles(stockCode, sdate, edate);
+            boolean ok = candleLoadService.loadUnifiedDailyCandles(stockCode, sdate, edate);
             log.info("│ 일봉 적재 {}", ok ? "완료" : "실패");
         }
         return ApiResponse.success(SuccessStatus.SUCCESS_200);
@@ -152,7 +152,7 @@ public class CandleLoadController {
             log.info("[{}/{}] 재적재 중: {}", i + 1, stockCodes.size(), code);
             if (candleLoadService.loadUnifiedMinuteCandles(code, minuteFrom, today, "U")) minuteSuccess++;
             else minuteFail++;
-            if (candleLoadService.loadDailyFromMinuteCandles(code, dailyFrom, today)) dailySuccess++;
+            if (candleLoadService.loadUnifiedDailyCandles(code, dailyFrom, today)) dailySuccess++;
             else dailyFail++;
         }
 

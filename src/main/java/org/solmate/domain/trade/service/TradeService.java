@@ -114,7 +114,7 @@ public class TradeService {
         addOrderToRedis("orders:buy:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
         OrderResponse response = OrderResponse.of(tradeHistory);
-        messagingTemplate.convertAndSend("/topic/trades/" + userId, response);
+        messagingTemplate.convertAndSend("/topic/trades/" + userId, TradeHistoryResponse.OrderItem.from(tradeHistory));
         return response;
     }
 
@@ -178,7 +178,7 @@ public class TradeService {
         addOrderToRedis("orders:sell:" + request.ticker(), tradeHistory.getId(), userId, price, request.quantity());
 
         OrderResponse response = OrderResponse.of(tradeHistory);
-        messagingTemplate.convertAndSend("/topic/trades/" + userId, response);
+        messagingTemplate.convertAndSend("/topic/trades/" + userId, TradeHistoryResponse.OrderItem.from(tradeHistory));
         return response;
     }
 

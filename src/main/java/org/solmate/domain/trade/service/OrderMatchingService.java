@@ -8,11 +8,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.solmate.domain.account.entity.Account;
 import org.solmate.domain.account.repository.AccountRepository;
+import org.solmate.domain.notification.dto.response.NotificationResponse;
 import org.solmate.domain.notification.entity.Notification;
 import org.solmate.domain.notification.enums.NotificationCategory;
 import org.solmate.domain.notification.enums.NotificationType;
 import org.solmate.domain.notification.repository.NotificationRepository;
 import org.solmate.domain.notification.service.NotificationService;
+import org.solmate.domain.trade.dto.response.TradeHistoryResponse;
 import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
@@ -25,6 +27,7 @@ import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +49,7 @@ public class OrderMatchingService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -117,10 +121,12 @@ public class OrderMatchingService {
                     // Redis ZSet에서 제거
                     redisTemplate.opsForZSet().remove(key, json);
 
-                    // 알림 저장
-                    saveNotification(user, tradeHistory, currentPrice, quantity);
+                    // 알림 저장 및 push
+                    Notification notification = saveNotification(user, tradeHistory, currentPrice, quantity);
+                    messagingTemplate.convertAndSend("/topic/trades/" + userId, TradeHistoryResponse.OrderItem.from(tradeHistory));
+                    messagingTemplate.convertAndSend("/topic/notifications/" + userId, NotificationResponse.of(notification));
 
-                    // 팔로워 알림 저장
+                    // 팔로워 알림 저장 및 push
                     notificationService.saveTradeNotifications(user, tradeHistory.getId(), ticker, tradeHistory.getStock().getStockName(), "BUY", currentPrice, quantity);
 
                     log.info("매수 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
@@ -182,10 +188,12 @@ public class OrderMatchingService {
                     // Redis ZSet에서 제거
                     redisTemplate.opsForZSet().remove(key, json);
 
-                    // 알림 저장
-                    saveNotification(user, tradeHistory, currentPrice, quantity);
+                    // 알림 저장 및 push
+                    Notification notification = saveNotification(user, tradeHistory, currentPrice, quantity);
+                    messagingTemplate.convertAndSend("/topic/trades/" + userId, TradeHistoryResponse.OrderItem.from(tradeHistory));
+                    messagingTemplate.convertAndSend("/topic/notifications/" + userId, NotificationResponse.of(notification));
 
-                    // 팔로워 알림 저장
+                    // 팔로워 알림 저장 및 push
                     notificationService.saveTradeNotifications(user, tradeHistory.getId(), ticker, tradeHistory.getStock().getStockName(), "SELL", currentPrice, quantity);
 
                     log.info("매도 체결 완료 - orderId: {}, ticker: {}, price: {}, quantity: {}", orderId, ticker, currentPrice, quantity);
@@ -202,7 +210,7 @@ public class OrderMatchingService {
     }
 
     // 체결 알림 저장
-    private void saveNotification(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
+    private Notification saveNotification(User user, TradeHistory tradeHistory, BigDecimal currentPrice, BigDecimal quantity) {
         String stockName = tradeHistory.getStock().getStockName();
         String ticker = tradeHistory.getStock().getTickerCode();
         String side = tradeHistory.getTradeType() == TradeType.BUY ? "BUY" : "SELL";
@@ -232,7 +240,7 @@ public class OrderMatchingService {
             .payload(payload)
             .build();
 
-        notificationRepository.save(notification);
+        return notificationRepository.save(notification);
     }
 
     // 매수 체결 시 Holdings 업데이트 (없으면 생성, 있으면 평균단가 재계산)

@@ -122,7 +122,7 @@ public class TradeService {
         Stock stock = stockRepository.findByTickerCode(request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.STOCK_NOT_FOUND));
 
-        Holdings holdings = holdingsRepository.findByUserAndTickerCode(user, request.ticker())
+        Holdings holdings = holdingsRepository.findByUserAndTickerCodeWithLock(user, request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS));
 
         // 보유 수량 검증

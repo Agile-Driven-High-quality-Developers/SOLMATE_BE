@@ -24,8 +24,12 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CandleAccumulatorService {
 
-    private static final LocalTime MARKET_OPEN  = LocalTime.of(9, 0);
-    private static final LocalTime MARKET_CLOSE = LocalTime.of(15, 30);
+    private static final LocalTime PRE_MARKET_OPEN    = LocalTime.of(8, 0);
+    private static final LocalTime PRE_MARKET_CLOSE   = LocalTime.of(8, 50);
+    private static final LocalTime MARKET_OPEN        = LocalTime.of(9, 0);
+    private static final LocalTime MARKET_CLOSE       = LocalTime.of(15, 30);
+    private static final LocalTime AFTER_MARKET_OPEN  = LocalTime.of(15, 40);
+    private static final LocalTime AFTER_MARKET_CLOSE = LocalTime.of(20, 0);
 
     private static final String KEY_1MIN  = "candle:1min:";
     private static final String KEY_5MIN  = "candle:5min:";
@@ -44,10 +48,15 @@ public class CandleAccumulatorService {
     private final MinuteCandleRepository minuteCandleRepository;
     private final DailyCandleRepository dailyCandleRepository;
 
-    // 체결 수신 시 정규장 여부 확인 후 모든 봉 Redis 키 동시 업데이트
+    // 체결 수신 시 프리마켓/정규장/에프터마켓 여부 확인 후 봉 Redis 키 업데이트
     public void accumulate(LsWsStockResponse.Body body) {
         LocalTime now = LocalTime.now(KST);
-        if (now.isBefore(MARKET_OPEN) || now.isAfter(MARKET_CLOSE)) return;
+
+        boolean isPreMarket    = !now.isBefore(PRE_MARKET_OPEN)   && !now.isAfter(PRE_MARKET_CLOSE);
+        boolean isRegularMarket = !now.isBefore(MARKET_OPEN)       && !now.isAfter(MARKET_CLOSE);
+        boolean isAfterMarket  = !now.isBefore(AFTER_MARKET_OPEN)  && !now.isAfter(AFTER_MARKET_CLOSE);
+
+        if (!isPreMarket && !isRegularMarket && !isAfterMarket) return;
 
         String stockCode = body.shcode();
         long price   = Long.parseLong(body.price().trim());
@@ -57,7 +66,11 @@ public class CandleAccumulatorService {
         accumulateKey(KEY_5MIN  + stockCode, price, cvolume);
         accumulateKey(KEY_30MIN + stockCode, price, cvolume);
         accumulateKey(KEY_60MIN + stockCode, price, cvolume);
-        accumulateKey(KEY_1DAY  + stockCode, price, cvolume);
+
+        // 일봉은 정규장(09:00~15:30)만 누적
+        if (isRegularMarket) {
+            accumulateKey(KEY_1DAY  + stockCode, price, cvolume);
+        }
     }
 
     // Redis 키에 체결가/거래량 누적 (첫 체결이면 open 세팅, 이후엔 high/low/close/volume 갱신)

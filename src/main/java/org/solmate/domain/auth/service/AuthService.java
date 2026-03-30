@@ -106,7 +106,7 @@ public class AuthService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return new LoginResponse(user.getNickname(), accessToken, refreshToken);
+        return new LoginResponse(user.getId(), user.getNickname(), accessToken, refreshToken);
     }
 
     // 토큰 재발급

@@ -14,6 +14,8 @@ import org.solmate.domain.social.enums.MentoringStatus;
 import org.solmate.domain.social.repository.MentoringRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
+import org.solmate.domain.notification.dto.response.NotificationResponse;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class MentoringService {
     private final MentoringRepository mentoringRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * 멘토 신청
@@ -78,7 +81,8 @@ public class MentoringService {
                 .content(mentee.getNickname() + "님이 멘토 신청을 보냈습니다.")
                 .payload(payload)
                 .build();
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+        messagingTemplate.convertAndSend("/topic/notifications/" + mentor.getId(), NotificationResponse.of(savedNotification));
 
         return MentoringResponse.of(mentoringRelation);
     }
@@ -126,7 +130,8 @@ public class MentoringService {
                 .category(NotificationCategory.MENTORING)
                 .content(relation.getMentor().getNickname() + "님이 멘토 신청을 수락하셨습니다.")
                 .build();
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+        messagingTemplate.convertAndSend("/topic/notifications/" + relation.getMentee().getId(), NotificationResponse.of(savedNotification));
 
         return MentoringResponse.of(relation);
     }

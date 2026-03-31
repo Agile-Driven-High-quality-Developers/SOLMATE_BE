@@ -59,6 +59,6 @@ if [ -n "$OLD_CONTAINER" ]; then
   echo "$OLD_CONTAINER 종료 완료"
 fi
 
-# 안 쓰는 이미지 정리
-docker image prune -a -f
-echo "사용하지 않는 이미지 정리 완료"
+# 안 쓰는 이미지 정리 (최근 3개는 유지)
+docker images "$DOCKER_USERNAME/solmate-be" --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi -f
+echo "사용하지 않는 이미지 정리 완료 (최근 3개 유지)"

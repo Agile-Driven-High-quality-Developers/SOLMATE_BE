@@ -1,8 +1,11 @@
 package org.solmate.domain.auth.service;
 
+import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
 import org.solmate.common.jwt.JwtProvider;
+import org.solmate.domain.account.entity.Account;
+import org.solmate.domain.account.repository.AccountRepository;
 import org.solmate.domain.auth.dto.response.GoogleInfoResponse;
 import org.solmate.domain.auth.dto.response.GoogleTokenResponse;
 import org.solmate.domain.auth.dto.response.LoginResponse;
@@ -35,9 +38,12 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class GoogleService {
 
+    private static final BigDecimal INITIAL_SEED_MONEY = new BigDecimal("10000000");
+
     private final UserRepository userRepository;
     private final LoginTypeRepository loginTypeRepository;
     private final TokenRepository tokenRepository;
+    private final AccountRepository accountRepository;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
 
@@ -152,6 +158,12 @@ public class GoogleService {
                 .providerToken(providerToken)
                 .build();
         tokenRepository.save(token);
+
+        Account account = Account.builder()
+                .user(user)
+                .cash(INITIAL_SEED_MONEY)
+                .build();
+        accountRepository.save(account);
 
         return user;
     }

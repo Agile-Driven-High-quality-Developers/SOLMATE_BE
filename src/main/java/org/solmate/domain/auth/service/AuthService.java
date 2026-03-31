@@ -99,7 +99,7 @@ public class AuthService {
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(false)  // prod 환경에서는 true로 바꾸어 줄 예정!!
+                .secure(true)  // prod 환경에서는 true로 바꾸어 줄 예정!!
                 .path("/")
                 .maxAge(refreshExpiration / 1000)
                 .sameSite("Strict")

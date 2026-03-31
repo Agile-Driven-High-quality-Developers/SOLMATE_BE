@@ -158,6 +158,31 @@ public class MentoringService {
     }
 
     /**
+     * 멘토 신청 취소 (멘티만 가능)
+     * - PENDING(대기 중) 상태의 신청만 취소 가능
+     * - 신청 취소 시 멘토에게 전송된 알림도 함께 소프트딜리트
+     */
+    @Transactional
+    public void cancelMentoringRequest(Long menteeId, Long mentorUserId) {
+        MentoringRelation relation = mentoringRepository
+                .findByMenteeIdAndMentorIdAndStatusIn(menteeId, mentorUserId, List.of(MentoringStatus.PENDING))
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new GeneralException(ErrorStatus.MENTORING_RELATION_NOT_FOUND));
+
+        // 멘토에게 전송된 신청 알림 소프트딜리트 + 실시간 삭제 이벤트 푸시
+        notificationRepository.findMentoringRequestNotification(mentorUserId, relation.getId())
+                .ifPresent(notification -> {
+                    notification.delete();
+                    messagingTemplate.convertAndSend(
+                            "/topic/notifications/" + mentorUserId,
+                            NotificationResponse.deleted(notification.getId()));
+                });
+
+        mentoringRepository.delete(relation);
+    }
+
+    /**
      * 멘토 신청 거절
      * - NotificationService에서 알림의 payload를 파싱한 후 호출됨
      * - 거절 시 멘티에게 별도 알림은 전송하지 않음

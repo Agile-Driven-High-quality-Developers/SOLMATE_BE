@@ -45,6 +45,7 @@ public enum SuccessStatus implements BaseStatus {
     MENTORING_REQUEST_SUCCESS("MENTORING_201", HttpStatus.CREATED, "멘토링 신청 성공"),
     MENTORING_ACCEPT_SUCCESS("MENTORING_200_1", HttpStatus.OK, "멘토링 수락 성공"),
     MENTORING_REJECT_SUCCESS("MENTORING_200_2", HttpStatus.OK, "멘토링 거절 성공"),
+    MENTORING_REQUEST_CANCEL_SUCCESS("MENTORING_200_3", HttpStatus.OK, "멘토링 신청 취소 성공"),
     MENTORING_CANCEL_SUCCESS("MENTORING_200_4", HttpStatus.OK, "멘토링 취소 성공"),
     MY_MENTOR_SUCCESS("MENTORING_200_5", HttpStatus.OK, "내 멘토 조회 성공"),
     MY_MENTEE_LIST_SUCCESS("MENTORING_200_6", HttpStatus.OK, "내 멘티 목록 조회 성공"),

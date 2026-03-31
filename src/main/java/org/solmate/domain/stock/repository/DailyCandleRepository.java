@@ -6,8 +6,10 @@ import java.util.Optional;
 
 import org.solmate.domain.stock.entity.DailyCandle;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface DailyCandleRepository extends JpaRepository<DailyCandle, Long> {
 
@@ -20,4 +22,22 @@ public interface DailyCandleRepository extends JpaRepository<DailyCandle, Long> 
     // 여러 종목의 가장 최근 일봉 한 번에 조회
     @Query("SELECT d FROM DailyCandle d WHERE d.stockCode IN :tickerCodes AND d.candleTime = (SELECT MAX(d2.candleTime) FROM DailyCandle d2 WHERE d2.stockCode = d.stockCode)")
     List<DailyCandle> findLatestByStockCodes(@Param("tickerCodes") List<String> tickerCodes);
+
+    @Modifying
+    @Transactional
+    @Query(value =
+        "INSERT INTO daily_candle " +
+        "(stock_code, open_price, high_price, low_price, close_price, volume, candle_time) " +
+        "VALUES (:stockCode, :openPrice, :highPrice, :lowPrice, :closePrice, :volume, :candleTime) " +
+        "ON CONFLICT DO NOTHING",
+        nativeQuery = true)
+    int insertIgnoreDuplicate(
+        @Param("stockCode")  String stockCode,
+        @Param("openPrice")  Long openPrice,
+        @Param("highPrice")  Long highPrice,
+        @Param("lowPrice")   Long lowPrice,
+        @Param("closePrice") Long closePrice,
+        @Param("volume")     Long volume,
+        @Param("candleTime") LocalDateTime candleTime
+    );
 }

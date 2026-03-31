@@ -76,7 +76,6 @@ public class StockService {
         return StockQuoteResponse.from(response, stockLogo, sectorType);
     }
 
-    @Transactional
     public void updateAllMarketCap() {
         List<Stock> stocks = stockRepository.findAll();
         for (Stock stock : stocks) {
@@ -84,7 +83,8 @@ public class StockService {
                 LsQuoteResponse response = lsApiClient.getQuote(stock.getTickerCode());
                 BigDecimal total = BigDecimal.valueOf(response.t1102OutBlock().total());
                 stock.updateTotal(total);
-                Thread.sleep(200);
+                stockRepository.save(stock);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("시가총액 업데이트 중단 - 종목: {}", stock.getTickerCode());

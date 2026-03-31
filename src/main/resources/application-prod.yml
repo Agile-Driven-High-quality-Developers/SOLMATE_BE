@@ -70,6 +70,9 @@ springdoc:
   swagger-ui:
     tags-sorter: alpha
     operations-sorter: method
+  servers:
+    - url: https://solmate.kro.kr
+      description: Production server
 
 cloud:
   aws:

@@ -42,6 +42,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/test/**").permitAll()
 				.requestMatchers("/api/dev/**").permitAll()
 				.requestMatchers("/ws/**").permitAll()
+				.requestMatchers("/ws-sockjs").permitAll()
 				.requestMatchers("/static/**", "/*.html").permitAll()
 				.requestMatchers("/api/stocks/**").permitAll()
 				.requestMatchers("/api/admin/**").permitAll()

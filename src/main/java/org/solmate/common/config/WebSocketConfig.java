@@ -18,7 +18,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        //순수 WebSocket -> SharedWorker 등 SockJS 미지원 환경용
         registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");
+
+        //SockJS 폴백 -기존 브라우저 호환용
+        registry.addEndpoint("/ws-sockjs")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }

@@ -1,5 +1,7 @@
 package org.solmate.external.ls.client;
 
+import java.util.function.Function;
+
 import org.solmate.external.ls.LsProperties;
 import org.solmate.external.ls.dto.request.LsQuoteRequest;
 import org.solmate.external.ls.dto.request.LsUnifiedDailyCandleRequest;
@@ -10,10 +12,13 @@ import org.solmate.external.ls.dto.response.LsUnifiedMinuteCandleResponse;
 import org.solmate.external.ls.service.LsTokenService;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class LsApiClient {
@@ -22,74 +27,86 @@ public class LsApiClient {
     private final LsTokenService lsTokenService;
     private final RestClient restClient = RestClient.create();
 
+    private <T> T withTokenRetry(Function<String, T> call) {
+        try {
+            return call.apply(lsTokenService.getToken());
+        } catch (HttpServerErrorException e) {
+            if (e.getResponseBodyAsString().contains("IGW00121")) {
+                log.warn("LS 토큰 무효화 감지 - 재발급 후 재시도");
+                return call.apply(lsTokenService.refreshToken());
+            }
+            throw e;
+        }
+    }
+
     public LsQuoteResponse getQuote(String stockCode) {
-        return restClient.post()
+        return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/market-data")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t1102")
                 .header("tr_cont", "N")
                 .body(LsQuoteRequest.of(stockCode))
                 .retrieve()
-                .body(LsQuoteResponse.class);
+                .body(LsQuoteResponse.class));
     }
 
     /** t8452: 통합 1분봉 조회 (KRX+NXT, exchgubun: K/N/U) */
     public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandles(String stockCode, String sdate, String edate,
                                                                    String exchgubun) {
-        return restClient.post()
+        return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8452")
                 .header("tr_cont", "N")
                 .body(LsUnifiedMinuteCandleRequest.of(stockCode, sdate, edate, exchgubun))
                 .retrieve()
-                .body(LsUnifiedMinuteCandleResponse.class);
+                .body(LsUnifiedMinuteCandleResponse.class));
     }
 
     /** t8452: 통합 1분봉 연속 조회 */
     public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandlesContinue(String stockCode, String sdate, String edate,
                                                                            String ctsDate, String ctsTime,
                                                                            String exchgubun) {
-        return restClient.post()
+        return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8452")
                 .header("tr_cont", "Y")
                 .header("tr_cont_key", ctsDate + ctsTime)
                 .body(LsUnifiedMinuteCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate, ctsTime, exchgubun))
                 .retrieve()
-                .body(LsUnifiedMinuteCandleResponse.class);
+                .body(LsUnifiedMinuteCandleResponse.class));
     }
 
     /** t8451: 통합 일봉 조회 (KRX+NXT, 처음 조회) */
     public LsUnifiedDailyCandleResponse getUnifiedDailyCandles(String stockCode, String sdate, String edate) {
-        return restClient.post()
+        return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8451")
                 .header("tr_cont", "N")
                 .body(LsUnifiedDailyCandleRequest.of(stockCode, sdate, edate))
                 .retrieve()
-                .body(LsUnifiedDailyCandleResponse.class);
+                .body(LsUnifiedDailyCandleResponse.class));
     }
 
     /** t8451: 통합 일봉 연속 조회 */
     public LsUnifiedDailyCandleResponse getUnifiedDailyCandlesContinue(String stockCode, String sdate, String edate,
                                                                         String ctsDate) {
-        return restClient.post()
+        return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("authorization", "Bearer " + lsTokenService.getToken())
+                .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8451")
                 .header("tr_cont", "Y")
                 .header("tr_cont_key", ctsDate)
                 .body(LsUnifiedDailyCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate))
                 .retrieve()
-                .body(LsUnifiedDailyCandleResponse.class);
+                .body(LsUnifiedDailyCandleResponse.class));
     }
 
 }

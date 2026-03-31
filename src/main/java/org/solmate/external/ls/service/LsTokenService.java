@@ -40,6 +40,12 @@ public class LsTokenService {
         log.info("LS 토큰 캐시 삭제");
     }
 
+    public String refreshToken() {
+        clearToken();
+        log.info("LS 토큰 강제 재발급");
+        return issueToken();
+    }
+
     private String issueToken() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "client_credentials");

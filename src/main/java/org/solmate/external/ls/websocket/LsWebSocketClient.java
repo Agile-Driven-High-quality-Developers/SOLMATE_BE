@@ -98,12 +98,16 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     }
 
     public void reconnect() {
+        lsTokenService.clearToken();
         try {
             if (session != null && session.isOpen()) {
                 session.close();
+            } else {
+                connect();
             }
         } catch (Exception e) {
             log.error("LS WebSocket 세션 종료 실패", e);
+            connect();
         }
     }
 

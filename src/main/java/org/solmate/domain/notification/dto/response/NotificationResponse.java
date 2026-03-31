@@ -13,7 +13,8 @@ public record NotificationResponse(
     String content,
     boolean isRead,
     String actUrl,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String eventType
 ) {
     public static NotificationResponse of(Notification notification) {
         return new NotificationResponse(
@@ -23,7 +24,12 @@ public record NotificationResponse(
             notification.getContent(),
             notification.isRead(),
             notification.getActUrl(),
-            notification.getCreatedAt()
+            notification.getCreatedAt(),
+            "CREATE"
         );
+    }
+
+    public static NotificationResponse deleted(Long notificationId) {
+        return new NotificationResponse(notificationId, null, null, null, false, null, null, "DELETE");
     }
 }

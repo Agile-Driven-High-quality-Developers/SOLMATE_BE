@@ -42,6 +42,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/test/**").permitAll()
 				.requestMatchers("/api/dev/**").permitAll()
 				.requestMatchers("/ws/**").permitAll()
+				.requestMatchers("/ws-sockjs").permitAll()
 				.requestMatchers("/static/**", "/*.html").permitAll()
 				.requestMatchers("/api/stocks/**").permitAll()
 				.requestMatchers("/api/admin/**").permitAll()
@@ -59,8 +60,7 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		config.setAllowCredentials(true);
-		config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8080"));
-		config.setAllowedOriginPatterns(List.of("*"));
+		config.setAllowedOrigins(List.of("http://localhost:3000", "https://pda-solmate.com"));
 		config.setAllowedMethods(List.of("GET", "POST", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setExposedHeaders(List.of("*"));

@@ -43,6 +43,21 @@ public class MentoringController {
     }
 
     /**
+     * 멘토 신청 취소 (멘티만 가능)
+     * - PENDING(대기 중) 상태의 신청만 취소 가능
+     * - 멘토에게 전송된 알림도 함께 삭제
+     */
+    @Operation(summary = "멘토 신청 취소")
+    @DeleteMapping("/mentor-requests/{mentorUserId}/pending")
+    public ResponseEntity<ApiResponse<Void>> cancelMentoringRequest(
+            @AuthenticationPrincipal Long menteeId,
+            @PathVariable Long mentorUserId
+    ) {
+        mentoringService.cancelMentoringRequest(menteeId, mentorUserId);
+        return ApiResponse.success(SuccessStatus.MENTORING_REQUEST_CANCEL_SUCCESS, null);
+    }
+
+    /**
      * 멘토링 취소 (멘티만 가능)
      * - ACCEPTED(수락된 관계) 상태만 취소 가능
      * - mentorUserId 기반으로 관계를 조회하므로 프론트에서 relationId 불필요

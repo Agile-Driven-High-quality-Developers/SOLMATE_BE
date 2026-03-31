@@ -58,3 +58,7 @@ if [ -n "$OLD_CONTAINER" ]; then
   docker compose stop $OLD_CONTAINER
   echo "$OLD_CONTAINER 종료 완료"
 fi
+
+# 안 쓰는 이미지 정리
+docker image prune -a -f
+echo "사용하지 않는 이미지 정리 완료"

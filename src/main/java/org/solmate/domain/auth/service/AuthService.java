@@ -102,7 +102,7 @@ public class AuthService {
                 .secure(true)  // prod 환경에서는 true로 바꾸어 줄 예정!!
                 .path("/")
                 .maxAge(refreshExpiration / 1000)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 

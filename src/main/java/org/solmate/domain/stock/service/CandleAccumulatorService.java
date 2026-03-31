@@ -8,12 +8,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
-import org.solmate.domain.stock.entity.DailyCandle;
-import org.solmate.domain.stock.entity.MinuteCandle;
 import org.solmate.domain.stock.repository.DailyCandleRepository;
 import org.solmate.domain.stock.repository.MinuteCandleRepository;
 import org.solmate.external.ls.dto.websocket.LsWsStockResponse;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -25,9 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 public class CandleAccumulatorService {
 
     private static final LocalTime PRE_MARKET_OPEN    = LocalTime.of(8, 0);
-    private static final LocalTime PRE_MARKET_CLOSE   = LocalTime.of(8, 50);
+    private static final LocalTime PRE_MARKET_CLOSE   = LocalTime.of(9, 0);
     private static final LocalTime MARKET_OPEN        = LocalTime.of(9, 0);
-    private static final LocalTime MARKET_CLOSE       = LocalTime.of(15, 30);
+    private static final LocalTime MARKET_CLOSE       = LocalTime.of(15, 40);
     private static final LocalTime AFTER_MARKET_OPEN  = LocalTime.of(15, 40);
     private static final LocalTime AFTER_MARKET_CLOSE = LocalTime.of(20, 0);
 
@@ -37,130 +37,118 @@ public class CandleAccumulatorService {
     private static final String KEY_60MIN = "candle:60min:";
     private static final String KEY_1DAY  = "candle:1day:";
 
-    private static final List<String> ALL_PREFIXES = List.of(
-            KEY_1MIN, KEY_5MIN, KEY_30MIN, KEY_60MIN, KEY_1DAY
-    );
-
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+
+    // Lua 스크립트: OHLCV 원자적 누적
+    private static final DefaultRedisScript<Void> ACCUMULATE_SCRIPT;
+    static {
+        ACCUMULATE_SCRIPT = new DefaultRedisScript<>();
+        ACCUMULATE_SCRIPT.setLocation(new ClassPathResource("scripts/accumulate-candle.lua"));
+        ACCUMULATE_SCRIPT.setResultType(Void.class);
+    }
 
     private final StringRedisTemplate redisTemplate;
     private final MinuteCandleRepository minuteCandleRepository;
     private final DailyCandleRepository dailyCandleRepository;
 
-    // 체결 수신 시 프리마켓/정규장/에프터마켓 여부 확인 후 봉 Redis 키 업데이트
+    // 장 시간 내 체결 수신 시 모든 주기 Redis 키에 OHLCV 누적
     public void accumulate(LsWsStockResponse.Body body) {
         LocalTime now = LocalTime.now(KST);
 
-        boolean isPreMarket    = !now.isBefore(PRE_MARKET_OPEN)   && !now.isAfter(PRE_MARKET_CLOSE);
+        boolean isPreMarket     = !now.isBefore(PRE_MARKET_OPEN)   && !now.isAfter(PRE_MARKET_CLOSE);
         boolean isRegularMarket = !now.isBefore(MARKET_OPEN)       && !now.isAfter(MARKET_CLOSE);
-        boolean isAfterMarket  = !now.isBefore(AFTER_MARKET_OPEN)  && !now.isAfter(AFTER_MARKET_CLOSE);
+        boolean isAfterMarket   = !now.isBefore(AFTER_MARKET_OPEN) && !now.isAfter(AFTER_MARKET_CLOSE);
 
         if (!isPreMarket && !isRegularMarket && !isAfterMarket) return;
 
         String stockCode = body.shcode();
-        long price   = Long.parseLong(body.price().trim());
-        long cvolume = Long.parseLong(body.cvolume().trim());
+        String price     = body.price().trim();
+        String cvolume   = body.cvolume().trim();
+        String startTime = LocalDateTime.now(KST).format(TIME_FORMATTER);
 
-        accumulateKey(KEY_1MIN  + stockCode, price, cvolume);
-        accumulateKey(KEY_5MIN  + stockCode, price, cvolume);
-        accumulateKey(KEY_30MIN + stockCode, price, cvolume);
-        accumulateKey(KEY_60MIN + stockCode, price, cvolume);
-        accumulateKey(KEY_1DAY  + stockCode, price, cvolume);
+        accumulateKey(KEY_1MIN  + stockCode, price, cvolume, startTime);
+        accumulateKey(KEY_5MIN  + stockCode, price, cvolume, startTime);
+        accumulateKey(KEY_30MIN + stockCode, price, cvolume, startTime);
+        accumulateKey(KEY_60MIN + stockCode, price, cvolume, startTime);
+        accumulateKey(KEY_1DAY  + stockCode, price, cvolume, startTime);
     }
 
-    // Redis 키에 체결가/거래량 누적 (첫 체결이면 open 세팅, 이후엔 high/low/close/volume 갱신)
-    private void accumulateKey(String key, long price, long cvolume) {
-        Map<Object, Object> current = redisTemplate.opsForHash().entries(key);
-
-        if (current.isEmpty()) {
-            redisTemplate.opsForHash().putAll(key, Map.of(
-                    "open",      String.valueOf(price),
-                    "high",      String.valueOf(price),
-                    "low",       String.valueOf(price),
-                    "close",     String.valueOf(price),
-                    "volume",    String.valueOf(cvolume),
-                    "startTime", LocalDateTime.now(KST).format(TIME_FORMATTER)
-            ));
-        } else {
-            long high   = Math.max(price, Long.parseLong((String) current.get("high")));
-            long low    = Math.min(price, Long.parseLong((String) current.get("low")));
-            long volume = Long.parseLong((String) current.get("volume")) + cvolume;
-
-            redisTemplate.opsForHash().putAll(key, Map.of(
-                    "high",   String.valueOf(high),
-                    "low",    String.valueOf(low),
-                    "close",  String.valueOf(price),
-                    "volume", String.valueOf(volume)
-            ));
-        }
+    private void accumulateKey(String key, String price, String cvolume, String startTime) {
+        redisTemplate.execute(ACCUMULATE_SCRIPT, List.of(key), price, cvolume, startTime);
     }
 
-    // 1분봉 DB 저장 (매 분 00초)
     public void flushMinuteCandle(String stockCode) {
         flushToMinuteDb(stockCode);
     }
 
-    // 5분봉 Redis 초기화 (매 5분)
     public void flush5MinCandle(String stockCode) {
         redisTemplate.delete(KEY_5MIN + stockCode);
-        log.debug("5분봉 초기화: {}", stockCode);
     }
 
-    // 30분봉 Redis 초기화 (매 30분)
     public void flush30MinCandle(String stockCode) {
         redisTemplate.delete(KEY_30MIN + stockCode);
-        log.debug("30분봉 초기화: {}", stockCode);
     }
 
-    // 60분봉 Redis 초기화 (매 60분)
     public void flush60MinCandle(String stockCode) {
         redisTemplate.delete(KEY_60MIN + stockCode);
-        log.debug("60분봉 초기화: {}", stockCode);
     }
 
-    // 일봉 DB 저장 (장 마감 15:30)
     public void flushDailyCandle(String stockCode) {
-        String key = KEY_1DAY + stockCode;
-        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
-        if (data.isEmpty()) return;
+        String key     = KEY_1DAY + stockCode;
+        String snapKey = key + ":snap";
+
+        try {
+            redisTemplate.rename(key, snapKey);
+        } catch (Exception e) {
+            return;
+        }
+
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(snapKey);
+        if (data.isEmpty() || !isValidCandleData(data)) {
+            log.warn("일봉 불완전 데이터 삭제: {}", stockCode);
+            redisTemplate.delete(snapKey);
+            return;
+        }
 
         try {
             LocalDateTime candleTime = LocalDate.now(KST).atStartOfDay();
 
-            DailyCandle candle = DailyCandle.builder()
-                    .stockCode(stockCode)
-                    .openPrice(Long.parseLong((String) data.get("open")))
-                    .highPrice(Long.parseLong((String) data.get("high")))
-                    .lowPrice(Long.parseLong((String) data.get("low")))
-                    .closePrice(Long.parseLong((String) data.get("close")))
-                    .volume(Long.parseLong((String) data.get("volume")))
-                    .candleTime(candleTime)
-                    .build();
-
-            dailyCandleRepository.save(candle);
-            redisTemplate.delete(key);
+            dailyCandleRepository.insertIgnoreDuplicate(
+                    stockCode,
+                    Long.parseLong((String) data.get("open")),
+                    Long.parseLong((String) data.get("high")),
+                    Long.parseLong((String) data.get("low")),
+                    Long.parseLong((String) data.get("close")),
+                    Long.parseLong((String) data.get("volume")),
+                    candleTime);
             log.info("일봉 저장 완료: {}", stockCode);
         } catch (Exception e) {
             log.error("일봉 저장 실패: {}", stockCode, e);
+        } finally {
+            redisTemplate.delete(snapKey);
         }
     }
 
-    // 현재 진행 중인 봉 Redis 데이터 조회 (API 응답용)
     public Map<Object, Object> getCurrentCandle(String stockCode, String prefix) {
         return redisTemplate.opsForHash().entries(prefix + stockCode);
     }
 
-    // 1분봉 Redis 데이터를 DB에 저장하고 키 삭제
+    // RENAME으로 스냅샷 이동 후 처리 (flush 중 새 체결 유실 방지)
     private void flushToMinuteDb(String stockCode) {
-        String key = KEY_1MIN + stockCode;
-        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
-        if (data.isEmpty()) return;
+        String key     = KEY_1MIN + stockCode;
+        String snapKey = key + ":snap";
 
-        // 필수 필드 누락 시 불완전한 키 삭제 후 종료
-        if (!isValidCandleData(data)) {
+        try {
+            redisTemplate.rename(key, snapKey); // 원자적 이동, key 없으면 예외
+        } catch (Exception e) {
+            return; // 쌓인 데이터 없음
+        }
+
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(snapKey);
+        if (data.isEmpty() || !isValidCandleData(data)) {
             log.warn("1분봉 불완전 데이터 삭제: {}", stockCode);
-            redisTemplate.delete(key);
+            redisTemplate.delete(snapKey);
             return;
         }
 
@@ -170,21 +158,19 @@ public class CandleAccumulatorService {
                     ? LocalDateTime.parse(startTime, TIME_FORMATTER)
                     : LocalDateTime.now(KST).withSecond(0).withNano(0);
 
-            MinuteCandle candle = MinuteCandle.builder()
-                    .stockCode(stockCode)
-                    .openPrice(Long.parseLong((String) data.get("open")))
-                    .highPrice(Long.parseLong((String) data.get("high")))
-                    .lowPrice(Long.parseLong((String) data.get("low")))
-                    .closePrice(Long.parseLong((String) data.get("close")))
-                    .volume(Long.parseLong((String) data.get("volume")))
-                    .candleTime(candleTime)
-                    .build();
-
-            minuteCandleRepository.save(candle);
-            redisTemplate.delete(key);
+            minuteCandleRepository.insertIgnoreDuplicate(
+                    stockCode,
+                    Long.parseLong((String) data.get("open")),
+                    Long.parseLong((String) data.get("high")),
+                    Long.parseLong((String) data.get("low")),
+                    Long.parseLong((String) data.get("close")),
+                    Long.parseLong((String) data.get("volume")),
+                    candleTime);
             log.debug("1분봉 저장 완료: {} {}", stockCode, candleTime);
         } catch (Exception e) {
             log.error("1분봉 저장 실패: {}", stockCode, e);
+        } finally {
+            redisTemplate.delete(snapKey);
         }
     }
 

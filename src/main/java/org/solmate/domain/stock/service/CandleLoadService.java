@@ -35,14 +35,13 @@ public class CandleLoadService {
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
+    private static final int MAX_PAGE = 50;
+
     private final LsApiClient lsApiClient;
     private final DataSource dataSource;
     private final StockRepository stockRepository;
 
-    /**
-     * t8452 통합 1분봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
-     * exchgubun: "K"=KRX, "N"=NXT, "U"=통합
-     */
+    // t8452 통합 1분봉 과거 데이터 적재 (exchgubun: K=KRX, N=NXT, U=통합)
     public boolean loadUnifiedMinuteCandles(String stockCode, String sdate, String edate, String exchgubun) {
         List<MinuteCandle> candles = new ArrayList<>();
 
@@ -51,13 +50,19 @@ public class CandleLoadService {
                     lsApiClient.getUnifiedMinuteCandles(stockCode, sdate, edate, exchgubun);
             collectUnifiedMinuteCandles(response, stockCode, candles);
 
+            int page = 1;
             while (response.hasNext()) {
+                if (page >= MAX_PAGE) {
+                    log.warn("  [통합분봉] 최대 페이지({}) 초과, 중단: stockCode={}", MAX_PAGE, stockCode);
+                    break;
+                }
                 sleep();
                 String ctsDate = response.t8452OutBlock().cts_date();
                 String ctsTime = response.t8452OutBlock().cts_time();
                 response = lsApiClient.getUnifiedMinuteCandlesContinue(
                         stockCode, sdate, edate, ctsDate, ctsTime, exchgubun);
                 collectUnifiedMinuteCandles(response, stockCode, candles);
+                page++;
             }
 
             saveMinuteCandles(candles, stockCode);
@@ -78,7 +83,6 @@ public class CandleLoadService {
         log.info("  [t8452 응답] 건수={}, 첫 봉={} {}, 마지막 봉={} {}",
                 response.candles().size(), first.date(), first.time(), last.date(), last.time());
 
-        // NXT 세션 시간 로깅 (첫 페이지에만 출력됨)
         if (response.t8452OutBlock() != null) {
             log.info("  [NXT 세션] 프리마켓={}-{}, 에프터마켓={}-{}",
                     response.t8452OutBlock().nxt_fm_s_time(), response.t8452OutBlock().nxt_fm_e_time(),
@@ -100,14 +104,12 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                // log.warn("[통합분봉 파싱 실패] stockCode={}, date={}, time={}", stockCode, item.date(), item.time());
+                // 파싱 실패 항목 스킵
             }
         }
     }
 
-    /**
-     * t8451: 통합 일봉 과거 데이터 적재 (KRX+NXT, 프리/에프터마켓 포함)
-     */
+    // t8451 통합 일봉 과거 데이터 적재
     public boolean loadUnifiedDailyCandles(String stockCode, String sdate, String edate) {
         List<DailyCandle> candles = new ArrayList<>();
 
@@ -115,11 +117,17 @@ public class CandleLoadService {
             LsUnifiedDailyCandleResponse response = lsApiClient.getUnifiedDailyCandles(stockCode, sdate, edate);
             collectUnifiedDailyCandles(response, stockCode, candles);
 
+            int page = 1;
             while (response.hasNext()) {
+                if (page >= MAX_PAGE) {
+                    log.warn("  [통합일봉] 최대 페이지({}) 초과, 중단: stockCode={}", MAX_PAGE, stockCode);
+                    break;
+                }
                 sleep();
                 String ctsDate = response.t8451OutBlock().cts_date();
                 response = lsApiClient.getUnifiedDailyCandlesContinue(stockCode, sdate, edate, ctsDate);
                 collectUnifiedDailyCandles(response, stockCode, candles);
+                page++;
             }
 
             saveDailyCandles(candles, stockCode);
@@ -146,12 +154,12 @@ public class CandleLoadService {
                         .candleTime(candleTime)
                         .build());
             } catch (Exception e) {
-                // log.warn("[통합일봉 파싱 실패] stockCode={}, date={}", stockCode, item.date());
+                // 파싱 실패 항목 스킵
             }
         }
     }
 
-    /** 전체 종목 일괄 적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    // 전체 종목 일괄 적재 (백그라운드)
     @Async
     public void loadAllAsync(int minuteDays, int dailyDays) {
         List<String> codes = stockRepository.findAllTickerCodes();
@@ -183,7 +191,7 @@ public class CandleLoadService {
         log.info("└─────────────────────────────────────────────");
     }
 
-    /** 실패 종목 재적재 - 백그라운드 실행 (HTTP 타임아웃 방지) */
+    // 실패 종목 재적재 (백그라운드)
     @Async
     public void retryAsync(List<String> stockCodes, int minuteDays, int dailyDays) {
         int total = stockCodes.size();
@@ -214,7 +222,7 @@ public class CandleLoadService {
         log.info("└─────────────────────────────────────────────");
     }
 
-    /** LS API rate limit 준수를 위한 대기 (2000ms, WebSocket 호출과 합산 고려) */
+    // LS API rate limit 준수 대기
     private void sleep() {
         try {
             Thread.sleep(2000);

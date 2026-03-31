@@ -41,6 +41,7 @@ public interface MentoringRepository extends JpaRepository<MentoringRelation, Lo
     // 내 멘토 조회 (내가 멘티인 ACCEPTED 관계)
     Optional<MentoringRelation> findByMenteeIdAndStatus(Long menteeId, MentoringStatus status);
 
-    // 내 멘티 목록 조회 (내가 멘토인 ACCEPTED 관계 전체)
-    List<MentoringRelation> findAllByMentorIdAndStatus(Long mentorId, MentoringStatus status);
+    // 내 멘티 목록 조회 (내가 멘토인 ACCEPTED 관계 전체, 탈퇴 유저 제외)
+    @Query("SELECT m FROM MentoringRelation m WHERE m.mentor.id = :mentorId AND m.status = :status AND m.mentee.deletedAt IS NULL")
+    List<MentoringRelation> findAllByMentorIdAndStatus(@Param("mentorId") Long mentorId, @Param("status") MentoringStatus status);
 }

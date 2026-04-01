@@ -540,6 +540,8 @@ public class CandleLoadService {
         log.info("│ [백필 시작] 종목={}개, 대상={}", total, date);
         log.info("└─────────────────────────────────────────────");
 
+        int minuteSuccess = 0, minuteFail = 0;
+        int dailySuccess = 0, dailyFail = 0;
         int fiveSuccess = 0, fiveFail = 0;
         int thirtySuccess = 0, thirtyFail = 0;
         int weeklySuccess = 0, weeklyFail = 0;
@@ -548,6 +550,8 @@ public class CandleLoadService {
         for (int i = 0; i < codes.size(); i++) {
             String code = codes.get(i);
             log.info("[{}/{}] 백필 중: {}", i + 1, total, code);
+            if (loadUnifiedMinuteCandles(code, date, date, "U")) minuteSuccess++; else minuteFail++;
+            if (loadUnifiedDailyCandles(code, date, date)) dailySuccess++; else dailyFail++;
             if (loadFiveMinuteCandlesForDate(code, date, date)) fiveSuccess++; else fiveFail++;
             if (loadThirtyMinuteCandlesForDate(code, date, date)) thirtySuccess++; else thirtyFail++;
             if (loadWeeklyCandles(code, date, date)) weeklySuccess++; else weeklyFail++;
@@ -556,8 +560,10 @@ public class CandleLoadService {
 
         log.info("┌─────────────────────────────────────────────");
         log.info("│ [백필 완료] 대상={}", date);
+        log.info("│ 1분봉:  성공={}건/실패={}건", minuteSuccess, minuteFail);
         log.info("│ 5분봉:  성공={}건/실패={}건", fiveSuccess, fiveFail);
         log.info("│ 30분봉: 성공={}건/실패={}건", thirtySuccess, thirtyFail);
+        log.info("│ 일봉:   성공={}건/실패={}건", dailySuccess, dailyFail);
         log.info("│ 주봉:   성공={}건/실패={}건", weeklySuccess, weeklyFail);
         log.info("│ 월봉:   성공={}건/실패={}건", monthlySuccess, monthlyFail);
         log.info("└─────────────────────────────────────────────");

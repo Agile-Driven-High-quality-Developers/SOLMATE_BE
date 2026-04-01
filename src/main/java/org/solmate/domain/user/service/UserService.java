@@ -6,6 +6,8 @@ import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.auth.enums.OAuthProvider;
 import org.solmate.domain.auth.repository.LoginTypeRepository;
 import org.solmate.domain.notification.repository.NotificationRepository;
+import org.solmate.domain.social.repository.FollowingRepository;
+import org.solmate.domain.social.repository.MentoringRepository;
 import org.solmate.domain.user.entity.User;
 import org.solmate.domain.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +27,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final LoginTypeRepository loginTypeRepository;
     private final NotificationRepository notificationRepository;
+    private final MentoringRepository mentoringRepository;
+    private final FollowingRepository followingRepository;
 
 
     public User getUserByEmail(String email) {
@@ -95,6 +99,10 @@ public class UserService {
             s3Service.deleteFile(user.getImageUrl());
         }
 
+        followingRepository.deleteAllByFollowerId(user.getId());
+        followingRepository.deleteAllByFollowingId(user.getId());
+        mentoringRepository.deleteAllByMentorId(user.getId());
+        mentoringRepository.deleteAllByMenteeId(user.getId());
         notificationRepository.softDeleteBySenderId(user.getId());
         user.withdraw();
     }

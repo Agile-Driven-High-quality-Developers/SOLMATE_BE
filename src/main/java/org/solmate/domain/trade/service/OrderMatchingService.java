@@ -91,7 +91,7 @@ public class OrderMatchingService {
                         .subtract(currentPrice)
                         .multiply(quantity);
 
-                    Account account = accountRepository.findByUser(user).orElse(null);
+                    Account account = accountRepository.findByUserWithLock(user).orElse(null);
                     if (account != null && refund.compareTo(BigDecimal.ZERO) > 0) {
                         account.addCash(refund);
                     }
@@ -151,7 +151,7 @@ public class OrderMatchingService {
                     if (user == null) continue;
 
                     // 현재가 * 수량 → Account에 입금
-                    Account account = accountRepository.findByUser(user).orElse(null);
+                    Account account = accountRepository.findByUserWithLock(user).orElse(null);
                     if (account != null) {
                         account.addCash(currentPrice.multiply(quantity));
                     }

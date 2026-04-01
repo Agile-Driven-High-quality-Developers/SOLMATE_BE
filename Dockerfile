@@ -17,6 +17,10 @@ FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
+# 타임존 설정
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 빌드 결과물만 복사 (1단계 gradle이나 소스는 버림)
 COPY --from=builder /app/build/libs/*.jar app.jar
 

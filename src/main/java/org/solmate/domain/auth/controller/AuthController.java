@@ -53,6 +53,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> sendEmailVerification(
             @RequestBody @Valid EmailVerificationRequest request
     ) {
+        userService.checkEmailNotDuplicated(request.email());
         emailVerificationService.requestEmailVerificationCode(request.email());
         return ApiResponse.success(SuccessStatus.EMAIL_SEND_SUCCESS);
     }

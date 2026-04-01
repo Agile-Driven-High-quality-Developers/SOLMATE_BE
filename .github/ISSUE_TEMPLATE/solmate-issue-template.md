@@ -1,5 +1,5 @@
 ---
-name: Roome issue template
+name: Solmate issue template
 about: Describe this issue template's purpose here.
 title: "[Tag] Task"
 labels: ''

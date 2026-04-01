@@ -196,6 +196,237 @@ public class CandleService {
         return result;
     }
 
+    // 5분봉 벤치마크: five_minute_candle 직접 조회
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getFiveMinFromTable(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+        List<FiveMinuteCandle> candles = fiveMinuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        return candles.stream().map(c -> CandleResponse.from(c, c.getCandleTime())).toList();
+    }
+
+    // 5분봉 벤치마크: minute_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getFiveMinFromAggregate(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+        List<MinuteCandle> candles = minuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDateTime, List<MinuteCandle>> buckets = new TreeMap<>();
+        for (MinuteCandle c : candles) {
+            buckets.computeIfAbsent(toBucketStart(c.getCandleTime(), 5), k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDateTime, List<MinuteCandle>> entry : buckets.entrySet()) {
+            List<MinuteCandle> bucket = entry.getValue();
+            result.add(CandleResponse.ofAggregated(entry.getKey(),
+                    bucket.get(0).getOpenPrice(),
+                    bucket.stream().mapToLong(MinuteCandle::getHighPrice).max().orElse(0),
+                    bucket.stream().mapToLong(MinuteCandle::getLowPrice).min().orElse(0),
+                    bucket.get(bucket.size() - 1).getClosePrice(),
+                    bucket.stream().mapToLong(MinuteCandle::getVolume).sum()));
+        }
+        return result;
+    }
+
+    // 60분봉 벤치마크: thirty_minute_candle 집계 (table 방식)
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getSixtyMinFromTable(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+        List<ThirtyMinuteCandle> candles = thirtyMinuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDateTime, List<ThirtyMinuteCandle>> buckets = new TreeMap<>();
+        for (ThirtyMinuteCandle c : candles) {
+            buckets.computeIfAbsent(toBucketStart(c.getCandleTime(), 60), k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDateTime, List<ThirtyMinuteCandle>> entry : buckets.entrySet()) {
+            result.add(aggregateThirtyMinuteCandles(entry.getValue(), entry.getKey()));
+        }
+        return result;
+    }
+
+    // 60분봉 벤치마크: minute_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getSixtyMinFromAggregate(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+        List<MinuteCandle> candles = minuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDateTime, List<MinuteCandle>> buckets = new TreeMap<>();
+        for (MinuteCandle c : candles) {
+            buckets.computeIfAbsent(toBucketStart(c.getCandleTime(), 60), k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDateTime, List<MinuteCandle>> entry : buckets.entrySet()) {
+            List<MinuteCandle> bucket = entry.getValue();
+            result.add(CandleResponse.ofAggregated(entry.getKey(),
+                    bucket.get(0).getOpenPrice(),
+                    bucket.stream().mapToLong(MinuteCandle::getHighPrice).max().orElse(0),
+                    bucket.stream().mapToLong(MinuteCandle::getLowPrice).min().orElse(0),
+                    bucket.get(bucket.size() - 1).getClosePrice(),
+                    bucket.stream().mapToLong(MinuteCandle::getVolume).sum()));
+        }
+        return result;
+    }
+
+    // 주봉 벤치마크: weekly_candle 직접 조회
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getWeeklyFromTable(String stockCode, int weeks) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusWeeks(weeks);
+        List<WeeklyCandle> candles = weeklyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        return candles.stream().map(c -> CandleResponse.from(c, c.getCandleTime())).toList();
+    }
+
+    // 주봉 벤치마크: daily_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getWeeklyFromAggregate(String stockCode, int weeks) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusWeeks(weeks);
+        List<DailyCandle> candles = dailyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDate, List<DailyCandle>> buckets = new TreeMap<>();
+        for (DailyCandle c : candles) {
+            LocalDate weekStart = c.getCandleTime().toLocalDate().with(java.time.DayOfWeek.MONDAY);
+            buckets.computeIfAbsent(weekStart, k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<DailyCandle>> entry : buckets.entrySet()) {
+            List<DailyCandle> bucket = entry.getValue();
+            long open   = bucket.get(0).getOpenPrice();
+            long close  = bucket.get(bucket.size() - 1).getClosePrice();
+            long high   = bucket.stream().mapToLong(DailyCandle::getHighPrice).max().orElse(0);
+            long low    = bucket.stream().mapToLong(DailyCandle::getLowPrice).min().orElse(0);
+            long volume = bucket.stream().mapToLong(DailyCandle::getVolume).sum();
+            result.add(CandleResponse.ofAggregated(entry.getKey().atStartOfDay(), open, high, low, close, volume));
+        }
+        return result;
+    }
+
+    // 월봉 벤치마크: monthly_candle 직접 조회
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getMonthlyFromTable(String stockCode, int months) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusMonths(months);
+        List<MonthlyCandle> candles = monthlyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        return candles.stream().map(c -> CandleResponse.from(c, c.getCandleTime())).toList();
+    }
+
+    // 월봉 벤치마크: daily_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getMonthlyFromAggregate(String stockCode, int months) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusMonths(months);
+        List<DailyCandle> candles = dailyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDate, List<DailyCandle>> buckets = new TreeMap<>();
+        for (DailyCandle c : candles) {
+            LocalDate monthStart = c.getCandleTime().toLocalDate().withDayOfMonth(1);
+            buckets.computeIfAbsent(monthStart, k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<DailyCandle>> entry : buckets.entrySet()) {
+            List<DailyCandle> bucket = entry.getValue();
+            long open   = bucket.get(0).getOpenPrice();
+            long close  = bucket.get(bucket.size() - 1).getClosePrice();
+            long high   = bucket.stream().mapToLong(DailyCandle::getHighPrice).max().orElse(0);
+            long low    = bucket.stream().mapToLong(DailyCandle::getLowPrice).min().orElse(0);
+            long volume = bucket.stream().mapToLong(DailyCandle::getVolume).sum();
+            result.add(CandleResponse.ofAggregated(entry.getKey().atStartOfDay(), open, high, low, close, volume));
+        }
+        return result;
+    }
+
+    // 년봉 벤치마크: monthly_candle 집계 (table 방식)
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getYearlyFromTable(String stockCode, int years) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusYears(years);
+        List<MonthlyCandle> candles = monthlyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDate, List<MonthlyCandle>> buckets = new TreeMap<>();
+        for (MonthlyCandle c : candles) {
+            LocalDate yearStart = c.getCandleTime().toLocalDate().withDayOfYear(1);
+            buckets.computeIfAbsent(yearStart, k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<MonthlyCandle>> entry : buckets.entrySet()) {
+            result.add(aggregateMonthlyCandles(entry.getValue(), entry.getKey().atStartOfDay()));
+        }
+        return result;
+    }
+
+    // 년봉 벤치마크: daily_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getYearlyFromAggregate(String stockCode, int years) {
+        LocalDateTime to = LocalDate.now(KST).plusDays(1).atStartOfDay();
+        LocalDateTime from = to.minusYears(years);
+        List<DailyCandle> candles = dailyCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+        TreeMap<LocalDate, List<DailyCandle>> buckets = new TreeMap<>();
+        for (DailyCandle c : candles) {
+            LocalDate yearStart = c.getCandleTime().toLocalDate().withDayOfYear(1);
+            buckets.computeIfAbsent(yearStart, k -> new ArrayList<>()).add(c);
+        }
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<DailyCandle>> entry : buckets.entrySet()) {
+            List<DailyCandle> bucket = entry.getValue();
+            long open   = bucket.get(0).getOpenPrice();
+            long close  = bucket.get(bucket.size() - 1).getClosePrice();
+            long high   = bucket.stream().mapToLong(DailyCandle::getHighPrice).max().orElse(0);
+            long low    = bucket.stream().mapToLong(DailyCandle::getLowPrice).min().orElse(0);
+            long volume = bucket.stream().mapToLong(DailyCandle::getVolume).sum();
+            result.add(CandleResponse.ofAggregated(entry.getKey().atStartOfDay(), open, high, low, close, volume));
+        }
+        return result;
+    }
+
+    // 30분봉 벤치마크: thirty_minute_candle 직접 조회
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getThirtyMinFromTable(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+
+        List<ThirtyMinuteCandle> candles = thirtyMinuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+
+        return candles.stream().map(c -> CandleResponse.from(c, c.getCandleTime())).toList();
+    }
+
+    // 30분봉 벤치마크: minute_candle 집계
+    @Transactional(readOnly = true)
+    public List<CandleResponse> getThirtyMinFromAggregate(String stockCode, int days) {
+        LocalDateTime to = LocalDate.now(KST).atTime(23, 59, 59);
+        LocalDateTime from = to.minusDays(days - 1).toLocalDate().atStartOfDay();
+
+        List<MinuteCandle> candles = minuteCandleRepository
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+
+        TreeMap<LocalDateTime, List<MinuteCandle>> buckets = new TreeMap<>();
+        for (MinuteCandle c : candles) {
+            LocalDateTime bucketStart = toBucketStart(c.getCandleTime(), 30);
+            buckets.computeIfAbsent(bucketStart, k -> new ArrayList<>()).add(c);
+        }
+
+        List<CandleResponse> result = new ArrayList<>();
+        for (Map.Entry<LocalDateTime, List<MinuteCandle>> entry : buckets.entrySet()) {
+            List<MinuteCandle> bucket = entry.getValue();
+            long open   = bucket.get(0).getOpenPrice();
+            long close  = bucket.get(bucket.size() - 1).getClosePrice();
+            long high   = bucket.stream().mapToLong(MinuteCandle::getHighPrice).max().orElse(0);
+            long low    = bucket.stream().mapToLong(MinuteCandle::getLowPrice).min().orElse(0);
+            long volume = bucket.stream().mapToLong(MinuteCandle::getVolume).sum();
+            result.add(CandleResponse.ofAggregated(entry.getKey(), open, high, low, close, volume));
+        }
+
+        return result;
+    }
+
     // 년봉: monthly_candle 12개씩 집계 + Redis 현재 월봉을 연 버킷에 merge
     @Transactional(readOnly = true)
     public List<CandleResponse> getYearlyCandles(String stockCode, int years, Long toEpoch) {

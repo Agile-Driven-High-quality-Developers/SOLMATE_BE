@@ -80,6 +80,7 @@ public class MentoringService {
                 .category(NotificationCategory.MENTORING)
                 .content(mentee.getNickname() + "님이 멘토 신청을 보냈습니다.")
                 .payload(payload)
+                .senderId(mentee.getId())
                 .build();
         Notification savedNotification = notificationRepository.save(notification);
         messagingTemplate.convertAndSend("/topic/notifications/" + mentor.getId(), NotificationResponse.of(savedNotification));
@@ -129,6 +130,7 @@ public class MentoringService {
                 .notificationType(NotificationType.MENTORING_ACCEPTED)
                 .category(NotificationCategory.MENTORING)
                 .content(relation.getMentor().getNickname() + "님이 멘토 신청을 수락하셨습니다.")
+                .senderId(relation.getMentor().getId())
                 .build();
         Notification savedNotification = notificationRepository.save(notification);
         messagingTemplate.convertAndSend("/topic/notifications/" + relation.getMentee().getId(), NotificationResponse.of(savedNotification));

@@ -190,6 +190,7 @@ public class NotificationService {
                 .category(NotificationCategory.SOCIAL)
                 .content(content)
                 .payload(finalPayload)
+                .senderId(trader.getId())
                 .build())
             .toList();
 

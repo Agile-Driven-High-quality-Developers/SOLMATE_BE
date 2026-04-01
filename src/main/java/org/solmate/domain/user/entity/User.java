@@ -63,6 +63,17 @@ public class User extends BaseEntity {
 
     public void withdraw() {
         this.deletedAt = LocalDateTime.now();
+        this.email = "탈퇴_" + this.id + "_" + this.email;
+        this.nickname = "탈퇴_" + this.id + "_" + this.nickname;
+    }
+
+    public void anonymizeIfNeeded() {
+        if (!this.email.startsWith("탈퇴_")) {
+            this.email = "탈퇴_" + this.id + "_" + this.email;
+        }
+        if (!this.nickname.startsWith("탈퇴_")) {
+            this.nickname = "탈퇴_" + this.id + "_" + this.nickname;
+        }
     }
 
     public boolean isWithdrawn() {

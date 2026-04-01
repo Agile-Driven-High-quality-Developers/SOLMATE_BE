@@ -129,7 +129,7 @@ public class GoogleService {
 
 
     private User findOrCreateUser(GoogleInfoResponse googleInfo, String providerToken) {
-        return userRepository.findByEmail(googleInfo.email())
+        return userRepository.findByEmailAndDeletedAtIsNull(googleInfo.email())
                 .map(user -> {
                     if (!loginTypeRepository.existsByUserAndLoginType(user, OAuthProvider.GOOGLE)) {
                         throw new GeneralException(ErrorStatus.EMAIL_REGISTERED_WITH_EMAIL);

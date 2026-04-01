@@ -26,6 +26,7 @@ public record TradeDiaryDetailResponse(
 ) {
     public record CommentInfo(
         Long commentId,
+        Long userId,
         String nickname,
         boolean isMentor,       // 댓글 작성자가 나의 멘토인지
         String content
@@ -54,13 +55,17 @@ public record TradeDiaryDetailResponse(
 
         // 댓글 목록 변환 (댓글 작성자가 나의 멘토인지 확인)
         List<CommentInfo> commentInfos = comments.stream()
-            .map(comment -> new CommentInfo(
-                comment.getId(),
-                comment.getUser().isWithdrawn() ? "탈퇴한 사용자" : comment.getUser().getNickname(),
-                mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(
-                    comment.getUser().getId(), currentUserId, MentoringStatus.ACCEPTED),
-                comment.getContent()
-            ))
+            .map(comment -> {
+                boolean withdrawn = comment.getUser().isWithdrawn();
+                return new CommentInfo(
+                    comment.getId(),
+                    withdrawn ? null : comment.getUser().getId(),
+                    withdrawn ? "탈퇴한 사용자" : comment.getUser().getNickname(),
+                    mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(
+                        comment.getUser().getId(), currentUserId, MentoringStatus.ACCEPTED),
+                    comment.getContent()
+                );
+            })
             .toList();
 
         return new TradeDiaryDetailResponse(

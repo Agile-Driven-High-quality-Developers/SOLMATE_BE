@@ -62,15 +62,19 @@ public class Notification extends BaseEntity {
     @Column(nullable = false)
     private NotificationCategory category;
 
+    @Column(name = "sender_id")
+    private Long senderId;
+
     @Builder
     public Notification(User user, NotificationType notificationType, String content,
-                        String payload, String actUrl, NotificationCategory category) {
+                        String payload, String actUrl, NotificationCategory category, Long senderId) {
         this.user = user;
         this.notificationType = notificationType;
         this.content = content;
         this.payload = payload;
         this.actUrl = actUrl;
         this.category = category;
+        this.senderId = senderId;
         this.isRead = false;
         this.isDeleted = false;
     }

@@ -56,7 +56,7 @@ public record TradeDiaryDetailResponse(
         List<CommentInfo> commentInfos = comments.stream()
             .map(comment -> new CommentInfo(
                 comment.getId(),
-                comment.getUser().getNickname(),
+                comment.getUser().isWithdrawn() ? "탈퇴한 사용자" : comment.getUser().getNickname(),
                 mentoringRepository.existsByMentorIdAndMenteeIdAndStatus(
                     comment.getUser().getId(), currentUserId, MentoringStatus.ACCEPTED),
                 comment.getContent()

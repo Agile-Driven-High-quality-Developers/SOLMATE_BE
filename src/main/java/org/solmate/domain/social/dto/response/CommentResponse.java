@@ -12,9 +12,10 @@ public record CommentResponse(
     LocalDateTime createdAt
 ) {
     public static CommentResponse of(Comment comment, boolean isMentor) {
+        String nickname = comment.getUser().isWithdrawn() ? "탈퇴한 사용자" : comment.getUser().getNickname();
         return new CommentResponse(
             comment.getId(),
-            comment.getUser().getNickname(),
+            nickname,
             isMentor,
             comment.getContent(),
             comment.getCreatedAt()

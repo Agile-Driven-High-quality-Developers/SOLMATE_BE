@@ -72,6 +72,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> sendPasswordResetEmail(
             @RequestBody @Valid EmailVerificationRequest request
     ) {
+        userService.getUserByEmail(request.email()); // 가입된 활성 유저만 허용 (탈퇴/미가입 차단)
         emailVerificationService.requestPasswordResetCode(request.email());
         return ApiResponse.success(SuccessStatus.EMAIL_SEND_SUCCESS);
     }

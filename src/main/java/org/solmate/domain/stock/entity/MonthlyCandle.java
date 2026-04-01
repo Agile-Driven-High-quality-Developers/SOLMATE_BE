@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -24,9 +23,6 @@ import lombok.experimental.SuperBuilder;
             name = "uk_monthly_candle_stock_code_candle_time",
             columnNames = {"stock_code", "candle_time"}
         )
-    },
-    indexes = {
-        @Index(name = "idx_monthly_candle_stock_code_candle_time", columnList = "stock_code, candle_time")
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

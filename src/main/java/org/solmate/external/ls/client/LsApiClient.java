@@ -51,8 +51,8 @@ public class LsApiClient {
                 .body(LsQuoteResponse.class));
     }
 
-    /** t8452: 통합 1분봉 조회 (KRX+NXT, exchgubun: K/N/U) */
-    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandles(String stockCode, String sdate, String edate,
+    /** t8452: 통합 N분봉 조회 (ncnt: 1/5/30/60 등) */
+    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandles(String stockCode, int ncnt, String sdate, String edate,
                                                                    String exchgubun) {
         return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
@@ -60,13 +60,13 @@ public class LsApiClient {
                 .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8452")
                 .header("tr_cont", "N")
-                .body(LsUnifiedMinuteCandleRequest.of(stockCode, sdate, edate, exchgubun))
+                .body(LsUnifiedMinuteCandleRequest.of(stockCode, ncnt, sdate, edate, exchgubun))
                 .retrieve()
                 .body(LsUnifiedMinuteCandleResponse.class));
     }
 
-    /** t8452: 통합 1분봉 연속 조회 */
-    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandlesContinue(String stockCode, String sdate, String edate,
+    /** t8452: 통합 N분봉 연속 조회 */
+    public LsUnifiedMinuteCandleResponse getUnifiedMinuteCandlesContinue(String stockCode, int ncnt, String sdate, String edate,
                                                                            String ctsDate, String ctsTime,
                                                                            String exchgubun) {
         return withTokenRetry(token -> restClient.post()
@@ -76,26 +76,26 @@ public class LsApiClient {
                 .header("tr_cd", "t8452")
                 .header("tr_cont", "Y")
                 .header("tr_cont_key", ctsDate + ctsTime)
-                .body(LsUnifiedMinuteCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate, ctsTime, exchgubun))
+                .body(LsUnifiedMinuteCandleRequest.ofContinue(stockCode, ncnt, sdate, edate, ctsDate, ctsTime, exchgubun))
                 .retrieve()
                 .body(LsUnifiedMinuteCandleResponse.class));
     }
 
-    /** t8451: 통합 일봉 조회 (KRX+NXT, 처음 조회) */
-    public LsUnifiedDailyCandleResponse getUnifiedDailyCandles(String stockCode, String sdate, String edate) {
+    /** t8451: 통합 일/주/월봉 조회 (gubun: 2=일, 3=주, 4=월) */
+    public LsUnifiedDailyCandleResponse getUnifiedDailyCandles(String stockCode, String gubun, String sdate, String edate) {
         return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("authorization", "Bearer " + token)
                 .header("tr_cd", "t8451")
                 .header("tr_cont", "N")
-                .body(LsUnifiedDailyCandleRequest.of(stockCode, sdate, edate))
+                .body(LsUnifiedDailyCandleRequest.of(stockCode, gubun, sdate, edate))
                 .retrieve()
                 .body(LsUnifiedDailyCandleResponse.class));
     }
 
-    /** t8451: 통합 일봉 연속 조회 */
-    public LsUnifiedDailyCandleResponse getUnifiedDailyCandlesContinue(String stockCode, String sdate, String edate,
+    /** t8451: 통합 일/주/월봉 연속 조회 */
+    public LsUnifiedDailyCandleResponse getUnifiedDailyCandlesContinue(String stockCode, String gubun, String sdate, String edate,
                                                                         String ctsDate) {
         return withTokenRetry(token -> restClient.post()
                 .uri(lsProperties.getBaseUrl() + "/stock/chart")
@@ -104,7 +104,7 @@ public class LsApiClient {
                 .header("tr_cd", "t8451")
                 .header("tr_cont", "Y")
                 .header("tr_cont_key", ctsDate)
-                .body(LsUnifiedDailyCandleRequest.ofContinue(stockCode, sdate, edate, ctsDate))
+                .body(LsUnifiedDailyCandleRequest.ofContinue(stockCode, gubun, sdate, edate, ctsDate))
                 .retrieve()
                 .body(LsUnifiedDailyCandleResponse.class));
     }

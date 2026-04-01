@@ -194,11 +194,13 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                         StockRealtimeResponse.from(response.body()));
                 candleAccumulatorService.accumulate(response.body());
                 orderMatchingService.match(stockCode);
-                broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");
-                broadcastCandle(stockCode, "candle:5min:",  "/topic/stocks/" + stockCode + "/candle/5min");
-                broadcastCandle(stockCode, "candle:30min:", "/topic/stocks/" + stockCode + "/candle/30min");
-                broadcastCandle(stockCode, "candle:60min:", "/topic/stocks/" + stockCode + "/candle/60min");
-                broadcastCandle(stockCode, "candle:1day:",  "/topic/stocks/" + stockCode + "/candle/1day");
+                broadcastCandle(stockCode, "candle:1min:",    1, "/topic/stocks/" + stockCode + "/candle/1min");
+                broadcastCandle(stockCode, "candle:5min:",    5, "/topic/stocks/" + stockCode + "/candle/5min");
+                broadcastCandle(stockCode, "candle:30min:",  30, "/topic/stocks/" + stockCode + "/candle/30min");
+                broadcastCandle(stockCode, "candle:60min:",  60, "/topic/stocks/" + stockCode + "/candle/60min");
+                broadcastCandle(stockCode, "candle:1day:",    1, "/topic/stocks/" + stockCode + "/candle/1day");
+                broadcastCandle(stockCode, "candle:1week:",   1, "/topic/stocks/" + stockCode + "/candle/1week");
+                broadcastCandle(stockCode, "candle:1month:",  1, "/topic/stocks/" + stockCode + "/candle/1month");
 
             } else if ("UH1".equals(trCd)) {
                 LsWsOrderBookResponse response = objectMapper.treeToValue(node, LsWsOrderBookResponse.class);
@@ -216,13 +218,16 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     }
 
     // Redis에서 해당 봉 데이터를 읽어 STOMP 토픽으로 브로드캐스트
-    private void broadcastCandle(String stockCode, String redisPrefix, String topic) {
+    // bucketUnit: 버킷 단위(분). startTime을 버킷 시작으로 내림 (ex. 5분봉이면 09:03 → 09:00)
+    private void broadcastCandle(String stockCode, String redisPrefix, int bucketUnit, String topic) {
         try {
             Map<Object, Object> data = candleAccumulatorService.getCurrentCandle(stockCode, redisPrefix);
             if (data.isEmpty()) return;
 
             String startTime = (String) data.get("startTime");
-            LocalDateTime candleTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+            LocalDateTime rawTime = LocalDateTime.parse(startTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+            int flooredMinute = (rawTime.getMinute() / bucketUnit) * bucketUnit;
+            LocalDateTime candleTime = rawTime.toLocalDate().atTime(rawTime.getHour(), flooredMinute);
             messagingTemplate.convertAndSend(topic, CandleResponse.fromRedis(data, candleTime));
         } catch (Exception e) {
             log.debug("캔들 브로드캐스트 실패 - prefix: {}, stockCode: {}", redisPrefix, stockCode);

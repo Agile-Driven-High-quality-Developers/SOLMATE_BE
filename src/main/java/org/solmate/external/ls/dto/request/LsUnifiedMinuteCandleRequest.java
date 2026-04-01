@@ -20,10 +20,10 @@ public record LsUnifiedMinuteCandleRequest(
             String exchgubun
     ) {}
 
-    public static LsUnifiedMinuteCandleRequest of(String shcode, String sdate, String edate, String exchgubun) {
+    public static LsUnifiedMinuteCandleRequest of(String shcode, int ncnt, String sdate, String edate, String exchgubun) {
         return new LsUnifiedMinuteCandleRequest(new InBlock(
                 shcode,
-                1,
+                ncnt,
                 500,
                 "0",
                 sdate,
@@ -37,11 +37,11 @@ public record LsUnifiedMinuteCandleRequest(
         ));
     }
 
-    public static LsUnifiedMinuteCandleRequest ofContinue(String shcode, String sdate, String edate,
+    public static LsUnifiedMinuteCandleRequest ofContinue(String shcode, int ncnt, String sdate, String edate,
                                                            String ctsDate, String ctsTime, String exchgubun) {
         return new LsUnifiedMinuteCandleRequest(new InBlock(
                 shcode,
-                1,
+                ncnt,
                 500,
                 "0",
                 sdate,

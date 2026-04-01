@@ -17,25 +17,25 @@ public record LsUnifiedDailyCandleRequest(
             String exchgubun
     ) {}
 
-    public static LsUnifiedDailyCandleRequest of(String shcode, String sdate, String edate) {
+    public static LsUnifiedDailyCandleRequest of(String shcode, String gubun, String sdate, String edate) {
         return new LsUnifiedDailyCandleRequest(new InBlock(
                 shcode,
-                "2",     // 일봉
+                gubun,
                 500,
                 sdate,
                 edate,
                 " ",
-                "N",     // 비압축
-                "Y",     // 수정주가 적용
-                "U"      // 통합 (KRX+NXT)
+                "N",
+                "Y",
+                "U"
         ));
     }
 
-    public static LsUnifiedDailyCandleRequest ofContinue(String shcode, String sdate, String edate,
+    public static LsUnifiedDailyCandleRequest ofContinue(String shcode, String gubun, String sdate, String edate,
                                                           String ctsDate) {
         return new LsUnifiedDailyCandleRequest(new InBlock(
                 shcode,
-                "2",
+                gubun,
                 500,
                 sdate,
                 edate,

@@ -81,7 +81,7 @@ public class StockController {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getDailyCandles(stockCode, days, to));
     }
 
-    @Operation(summary = "주봉 조회", description = "weeks 미지정 시 260주(5년). DB 일봉 집계. to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
+    @Operation(summary = "주봉 조회", description = "weeks 미지정 시 260주(5년). to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
     @GetMapping("/{stockCode}/candles/weekly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getWeeklyCandles(
             @PathVariable String stockCode,
@@ -90,7 +90,7 @@ public class StockController {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getWeeklyCandles(stockCode, weeks, to));
     }
 
-    @Operation(summary = "월봉 조회", description = "months 미지정 시 120개월(10년). DB 일봉 집계. to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
+    @Operation(summary = "월봉 조회", description = "months 미지정 시 120개월(10년). to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
     @GetMapping("/{stockCode}/candles/monthly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getMonthlyCandles(
             @PathVariable String stockCode,
@@ -99,7 +99,7 @@ public class StockController {
         return ApiResponse.success(SuccessStatus.SUCCESS_200, candleService.getMonthlyCandles(stockCode, months, to));
     }
 
-    @Operation(summary = "년봉 조회", description = "years 미지정 시 20년. DB 일봉 집계. to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
+    @Operation(summary = "년봉 조회", description = "years 미지정 시 20년. to 지정 시 해당 Unix epoch(초) 이전 데이터 조회 (TradingView 무한스크롤용)")
     @GetMapping("/{stockCode}/candles/yearly")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getYearlyCandles(
             @PathVariable String stockCode,

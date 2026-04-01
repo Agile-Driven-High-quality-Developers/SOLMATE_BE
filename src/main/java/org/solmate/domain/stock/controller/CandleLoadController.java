@@ -30,16 +30,15 @@ public class CandleLoadController {
 
     @Operation(
             summary = "과거 캔들 데이터 일괄 적재",
-            description = "전체 종목의 분봉(최근 minuteDays일)과 일봉(최근 dailyDays일)을 통합 API(t8452/t8451)로 적재합니다. "
+            description = "전체 종목의 분봉(최근 minuteDays일)과 일봉(상장일 전체)을 통합 API(t8452/t8451)로 적재합니다. "
                         + "백그라운드에서 실행되며 즉시 202를 반환합니다. "
                         + "이미 DB에 존재하는 데이터는 자동으로 스킵됩니다."
     )
     @PostMapping("/load")
     public ResponseEntity<ApiResponse<Void>> loadAll(
-            @RequestParam(defaultValue = "30") int minuteDays,
-            @RequestParam(defaultValue = "3650") int dailyDays
+            @RequestParam(defaultValue = "30") int minuteDays
     ) {
-        candleLoadService.loadAllAsync(minuteDays, dailyDays);
+        candleLoadService.loadAllAsync(minuteDays);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
                 new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), "캔들 일괄 적재가 백그라운드에서 시작됐습니다. 서버 로그를 확인하세요.", null)
         );
@@ -76,17 +75,43 @@ public class CandleLoadController {
     }
 
     @Operation(
+            summary = "5분봉/30분봉/주봉/월봉 일괄 적재",
+            description = "전체 종목의 5분봉/30분봉(최근 1500개)과 주봉/월봉(상장일 전체)을 백그라운드에서 적재합니다."
+    )
+    @PostMapping("/load/extended")
+    public ResponseEntity<ApiResponse<Void>> loadExtended() {
+        candleLoadService.loadExtendedAsync();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), "확장 캔들 일괄 적재가 백그라운드에서 시작됐습니다.", null)
+        );
+    }
+
+    @Operation(
+            summary = "특정 날짜 5분봉/30분봉/주봉/월봉 수동 백필",
+            description = "전체 종목의 5분봉/30분봉/주봉/월봉을 지정한 날짜 기준으로 적재합니다. "
+                        + "date 형식: yyyyMMdd (예: 20260401). 백그라운드에서 실행되며 즉시 202를 반환합니다."
+    )
+    @PostMapping("/backfill")
+    public ResponseEntity<ApiResponse<Void>> backfill(@RequestParam String date) {
+        log.info("[수동 백필 요청] date={}", date);
+        candleLoadService.backfillForDateAsync(date);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(),
+                        date + " 백필이 백그라운드에서 시작됐습니다. 서버 로그를 확인하세요.", null)
+        );
+    }
+
+    @Operation(
             summary = "특정 종목 캔들 재적재",
-            description = "실패한 종목 코드 목록을 받아 분봉/일봉을 재시도합니다. "
+            description = "실패한 종목 코드 목록을 받아 분봉/일봉(상장일 전체)을 재시도합니다. "
                         + "백그라운드에서 실행되며 즉시 202를 반환합니다."
     )
     @PostMapping("/retry")
     public ResponseEntity<ApiResponse<Void>> retry(
             @RequestBody List<String> stockCodes,
-            @RequestParam(defaultValue = "30") int minuteDays,
-            @RequestParam(defaultValue = "3650") int dailyDays
+            @RequestParam(defaultValue = "30") int minuteDays
     ) {
-        candleLoadService.retryAsync(stockCodes, minuteDays, dailyDays);
+        candleLoadService.retryAsync(stockCodes, minuteDays);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
                 new ApiResponse<>(true, SuccessStatus.SUCCESS_200.getCode(), "캔들 재적재가 백그라운드에서 시작됐습니다. 서버 로그를 확인하세요.", null)
         );

@@ -35,14 +35,15 @@ public class CandleService {
      * 분봉 조회
      * unit=1  → DB minute_candle 직접 조회 + Redis 현재 1분봉
      * unit=5|30|60 → DB 1분봉 집계 + Redis 현재 N분봉
+     * to가 있으면 해당 epoch(초) 이전 데이터 조회 (TradingView 무한스크롤)
      */
     @Transactional(readOnly = true)
-    public List<CandleResponse> getMinuteCandles(String stockCode, int unit, int days) {
+    public List<CandleResponse> getMinuteCandles(String stockCode, int unit, int days, Long to) {
         int effectiveDays = days > 0 ? days : defaultDaysForUnit(unit);
         if (unit == 1) {
-            return getOneMinuteCandles(stockCode, effectiveDays);
+            return getOneMinuteCandles(stockCode, effectiveDays, to);
         }
-        return getAggregatedMinuteCandles(stockCode, unit, effectiveDays);
+        return getAggregatedMinuteCandles(stockCode, unit, effectiveDays, to);
     }
 
     // unit별 기본 조회 일수 (days=0으로 요청 시 적용)
@@ -57,12 +58,12 @@ public class CandleService {
     }
 
     // unit=1: DB minute_candle 직접 조회 + Redis 현재 봉
-    private List<CandleResponse> getOneMinuteCandles(String stockCode, int days) {
-        LocalDateTime from = LocalDate.now(KST).minusDays(days - 1).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).atTime(23, 59, 59);
+    private List<CandleResponse> getOneMinuteCandles(String stockCode, int days, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).atTime(23, 59, 59));
+        LocalDateTime from = toDateTime.minusDays(days - 1).toLocalDate().atStartOfDay();
 
         List<MinuteCandle> candles = minuteCandleRepository
-                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, toDateTime);
 
         List<CandleResponse> result = new ArrayList<>(
                 candles.stream()
@@ -70,14 +71,15 @@ public class CandleService {
                         .toList()
         );
 
-        appendCurrentCandle(result, stockCode, "candle:1min:");
+        if (toEpoch == null) appendCurrentCandle(result, stockCode, "candle:1min:");
         return result;
     }
 
     // unit=5|30|60: DB 1분봉을 N분 단위로 집계 + Redis 현재 N분봉
-    private List<CandleResponse> getAggregatedMinuteCandles(String stockCode, int unit, int days) {
-        LocalDateTime from = LocalDate.now(KST).minusDays(days - 1).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).atTime(23, 59, 59);
+    private List<CandleResponse> getAggregatedMinuteCandles(String stockCode, int unit, int days, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).atTime(23, 59, 59));
+        LocalDateTime from = toDateTime.minusDays(days - 1).toLocalDate().atStartOfDay();
+        LocalDateTime to   = toDateTime;
 
         List<MinuteCandle> oneMinCandles = minuteCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
@@ -95,18 +97,18 @@ public class CandleService {
         }
 
         String redisPrefix = "candle:" + unit + "min:";
-        appendCurrentCandle(result, stockCode, redisPrefix);
+        if (toEpoch == null) appendCurrentCandle(result, stockCode, redisPrefix);
         return result;
     }
 
     // 일봉 조회 (DB + 오늘 진행 중인 봉 포함)
     @Transactional(readOnly = true)
-    public List<CandleResponse> getDailyCandles(String stockCode, int days) {
-        LocalDateTime from = LocalDate.now(KST).minusDays(days).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
+    public List<CandleResponse> getDailyCandles(String stockCode, int days, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).plusDays(1).atStartOfDay());
+        LocalDateTime from = toDateTime.minusDays(days);
 
         List<DailyCandle> candles = dailyCandleRepository
-                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
+                .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, toDateTime);
 
         List<CandleResponse> result = new ArrayList<>(
                 candles.stream()
@@ -114,32 +116,32 @@ public class CandleService {
                         .toList()
         );
 
-        appendCurrentCandle(result, stockCode, "candle:1day:");
+        if (toEpoch == null) appendCurrentCandle(result, stockCode, "candle:1day:");
         return result;
     }
 
     // 주봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     @Transactional(readOnly = true)
-    public List<CandleResponse> getWeeklyCandles(String stockCode, int weeks) {
-        LocalDateTime from = LocalDate.now(KST).minusWeeks(weeks).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
-        return aggregateDailyCandles(stockCode, from, to, this::toWeekBucketStart);
+    public List<CandleResponse> getWeeklyCandles(String stockCode, int weeks, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).plusDays(1).atStartOfDay());
+        LocalDateTime from = toDateTime.minusWeeks(weeks);
+        return aggregateDailyCandles(stockCode, from, toDateTime, this::toWeekBucketStart, toEpoch == null);
     }
 
     // 월봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     @Transactional(readOnly = true)
-    public List<CandleResponse> getMonthlyCandles(String stockCode, int months) {
-        LocalDateTime from = LocalDate.now(KST).minusMonths(months).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
-        return aggregateDailyCandles(stockCode, from, to, this::toMonthBucketStart);
+    public List<CandleResponse> getMonthlyCandles(String stockCode, int months, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).plusDays(1).atStartOfDay());
+        LocalDateTime from = toDateTime.minusMonths(months);
+        return aggregateDailyCandles(stockCode, from, toDateTime, this::toMonthBucketStart, toEpoch == null);
     }
 
     // 년봉 조회 (DB 일봉 집계 + 오늘 진행 중인 봉 포함)
     @Transactional(readOnly = true)
-    public List<CandleResponse> getYearlyCandles(String stockCode, int years) {
-        LocalDateTime from = LocalDate.now(KST).minusYears(years).atStartOfDay();
-        LocalDateTime to   = LocalDate.now(KST).plusDays(1).atStartOfDay();
-        return aggregateDailyCandles(stockCode, from, to, this::toYearBucketStart);
+    public List<CandleResponse> getYearlyCandles(String stockCode, int years, Long toEpoch) {
+        LocalDateTime toDateTime = resolveToDateTime(toEpoch, LocalDate.now(KST).plusDays(1).atStartOfDay());
+        LocalDateTime from = toDateTime.minusYears(years);
+        return aggregateDailyCandles(stockCode, from, toDateTime, this::toYearBucketStart, toEpoch == null);
     }
 
     // DB 일봉을 주어진 버킷 함수로 그룹핑해 집계 + Redis 현재 일봉을 버킷에 merge
@@ -147,7 +149,8 @@ public class CandleService {
             String stockCode,
             LocalDateTime from,
             LocalDateTime to,
-            java.util.function.Function<LocalDate, LocalDate> bucketFn) {
+            java.util.function.Function<LocalDate, LocalDate> bucketFn,
+            boolean appendRedis) {
 
         List<DailyCandle> dailyCandles = dailyCandleRepository
                 .findByStockCodeAndCandleTimeBetweenOrderByCandleTimeAsc(stockCode, from, to);
@@ -163,8 +166,14 @@ public class CandleService {
             result.add(aggregateDailyCandleList(entry.getValue(), entry.getKey().atStartOfDay()));
         }
 
-        appendCurrentDayCandle(result, stockCode, bucketFn);
+        if (appendRedis) appendCurrentDayCandle(result, stockCode, bucketFn);
         return result;
+    }
+
+    // to epoch(초)가 있으면 해당 LocalDateTime으로 변환, 없으면 기본값 사용
+    private LocalDateTime resolveToDateTime(Long toEpoch, LocalDateTime defaultValue) {
+        if (toEpoch == null) return defaultValue;
+        return LocalDateTime.ofEpochSecond(toEpoch, 0, ZoneOffset.ofHours(9));
     }
 
     // Redis 현재 일봉을 버킷 기준으로 변환해 마지막 봉에 merge (주/월/년봉용)

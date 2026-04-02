@@ -30,7 +30,8 @@ public class AccountService {
                 .orElseThrow(() -> new GeneralException(ErrorStatus.ACCOUNT_NOT_FOUND));
 
         BigDecimal initialCash = account.getInitialCash();
-        BigDecimal cash = portfolioCalculator.getCash(userId);
+        BigDecimal cash = portfolioCalculator.getCash(userId)
+                .add(portfolioCalculator.getPendingBuyAmount(userId));
 
         List<PortfolioHoldingLine> lines = portfolioCalculator.getHoldingEvaluationLines(userId);
         BigDecimal sumEvaluationRaw = lines.stream()

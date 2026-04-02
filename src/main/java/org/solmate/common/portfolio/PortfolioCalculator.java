@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.account.entity.Account;
@@ -44,19 +42,11 @@ public class PortfolioCalculator {
         return cash.setScale(0, RoundingMode.HALF_UP);
     }
 
-    // 종목별 평가금액 (실제 보유 수량 = Holdings.quantity + PENDING SELL)
+    // 종목별 평가금액 (실제 보유 수량 = Holdings.quantity)
     @Transactional(readOnly = true)
     public List<PortfolioHoldingLine> getHoldingEvaluationLines(Long userId) {
         List<Holdings> holdingsList = holdingsRepository.findByUserId(userId);
         if (holdingsList.isEmpty()) return List.of();
-
-        // DB N+1 제거: PENDING SELL 전체를 한 번에 조회 후 메모리에서 그룹핑
-        Map<String, BigDecimal> pendingSellMap = tradeHistoryRepository
-                .findPendingByUserIdAndTradeTypeWithStock(userId, TradeType.SELL)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        t -> t.getStock().getTickerCode(),
-                        Collectors.reducing(BigDecimal.ZERO, TradeHistory::getQuantity, BigDecimal::add)));
 
         // Redis N+1 제거: 현재가 일괄 조회
         List<String> tickerCodes = holdingsList.stream().map(Holdings::getTickerCode).toList();
@@ -64,9 +54,8 @@ public class PortfolioCalculator {
 
         List<PortfolioHoldingLine> lines = new ArrayList<>();
         for (Holdings h : holdingsList) {
-            BigDecimal pendingSellQuantity = pendingSellMap.getOrDefault(h.getTickerCode(), BigDecimal.ZERO);
-            BigDecimal totalQuantity = h.getQuantity().add(pendingSellQuantity);
-            if (totalQuantity.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal quantity = h.getQuantity();
+            if (quantity.compareTo(BigDecimal.ZERO) <= 0) continue;
 
             BigDecimal price = prices.get(h.getTickerCode());
             if (price == null) throw new GeneralException(ErrorStatus.STOCK_PRICE_NOT_FOUND);
@@ -74,14 +63,14 @@ public class PortfolioCalculator {
             lines.add(new PortfolioHoldingLine(
                     h.getTickerCode(),
                     h.getStock().getStockName(),
-                    price.multiply(totalQuantity)));
+                    price.multiply(quantity)));
         }
 
         lines.sort(Comparator.comparing(PortfolioHoldingLine::evaluation).reversed());
         return lines;
     }
 
-    // 총 평가금액 = (Holdings.quantity + PENDING SELL 수량) × 현재가의 합
+    // 총 평가금액 = Holdings.quantity × 현재가의 합
     @Transactional(readOnly = true)
     public BigDecimal getTotalEvaluation(Long userId) {
         return getHoldingEvaluationLines(userId).stream()

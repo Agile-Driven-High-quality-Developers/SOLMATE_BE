@@ -90,6 +90,17 @@ public class PortfolioCalculator {
                 .setScale(0, RoundingMode.HALF_UP);
     }
 
+    // PENDING BUY로 묶인 금액 = price × quantity 합산
+    @Transactional(readOnly = true)
+    public BigDecimal getPendingBuyAmount(Long userId) {
+        return tradeHistoryRepository
+                .findPendingByUserIdAndTradeType(userId, TradeType.BUY)
+                .stream()
+                .map(t -> t.getPrice().multiply(t.getQuantity()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(0, RoundingMode.HALF_UP);
+    }
+
     // 총 수익금 = 총 자산(평가금액 + 현금) - 시드머니
     public BigDecimal getTotalReturnAmount(BigDecimal totalAsset, BigDecimal initialCash) {
         return totalAsset.subtract(initialCash).setScale(0, RoundingMode.HALF_UP);

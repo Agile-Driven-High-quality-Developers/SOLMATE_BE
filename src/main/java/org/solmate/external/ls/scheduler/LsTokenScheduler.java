@@ -14,7 +14,7 @@ public class LsTokenScheduler {
 
     private final LsWebSocketClient lsWebSocketClient;
 
-    @Scheduled(cron = "0 54 9 * * *")
+    @Scheduled(cron = "0 07 10 * * *")
     public void refreshToken() {
         log.info("LS 토큰 만료 예정 - WebSocket 재연결 시작");
         lsWebSocketClient.reconnect();

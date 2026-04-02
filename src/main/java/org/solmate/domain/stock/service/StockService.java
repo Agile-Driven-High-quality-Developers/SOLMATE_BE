@@ -70,6 +70,9 @@ public class StockService {
     @Transactional(readOnly = true)
     public StockQuoteResponse getQuote(String stockCode) {
         LsQuoteResponse response = lsApiClient.getQuote(stockCode);
+        // 상세 조회 시 최신 시가총액을 Redis에 동기화
+        stockInfoService.updateTotal(stockCode, response.t1102OutBlock().total());
+        
         Stock stock = stockRepository.findByTickerCode(stockCode).orElse(null);
         String stockLogo = stock != null && stock.getStockLogo() != null ? s3Service.buildFileUrl(stock.getStockLogo()) : null;
         SectorType sectorType = stock != null ? stock.getSectorType() : null;

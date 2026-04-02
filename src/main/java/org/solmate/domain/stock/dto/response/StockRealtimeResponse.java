@@ -10,9 +10,10 @@ public record StockRealtimeResponse(
         long highPrice,
         long lowPrice,
         long volume,
+        long total,
         String chetime
 ) {
-    public static StockRealtimeResponse from(LsWsStockResponse.Body body) {
+    public static StockRealtimeResponse from(LsWsStockResponse.Body body, long total) {
         return new StockRealtimeResponse(
                 body.shcode(),
                 Long.parseLong(body.price().trim()),
@@ -21,6 +22,7 @@ public record StockRealtimeResponse(
                 Long.parseLong(body.high().trim()),
                 Long.parseLong(body.low().trim()),
                 Long.parseLong(body.volume().trim()),
+                total,
                 body.chetime()
         );
     }

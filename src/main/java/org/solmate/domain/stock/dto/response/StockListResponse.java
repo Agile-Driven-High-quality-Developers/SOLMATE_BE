@@ -33,14 +33,18 @@ public record StockListResponse(
         long cur = 0;
         double chgRate = 0.0;
         long vol = 0;
+        BigDecimal marketCap = stock.getTotal();
 
         if (redisInfo != null && !redisInfo.isEmpty()) {
             String curStr = (String) redisInfo.get("cur");
             String chgRateStr = (String) redisInfo.get("chgRate");
             String volStr = (String) redisInfo.get("vol");
+            String totalStr = (String) redisInfo.get("total");
+
             if (curStr != null && !curStr.isBlank()) cur = Long.parseLong(curStr);
             if (chgRateStr != null && !chgRateStr.isBlank()) chgRate = Double.parseDouble(chgRateStr);
             if (volStr != null && !volStr.isBlank()) vol = Long.parseLong(volStr);
+            if (totalStr != null && !totalStr.isBlank()) marketCap = new BigDecimal(totalStr);
         }
 
         return new StockListResponse(
@@ -50,7 +54,7 @@ public record StockListResponse(
                 stock.getSectorType(),
                 cur,
                 chgRate,
-                stock.getTotal(),
+                marketCap,
                 vol
         );
     }

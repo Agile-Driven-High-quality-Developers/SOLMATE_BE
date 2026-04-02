@@ -66,6 +66,22 @@ public class StockInfoService {
         return priceMap;
     }
 
+    public void updateTotal(String stockCode, long total) {
+        redisTemplate.opsForHash().put(INFO_KEY_PREFIX + stockCode, "total", String.valueOf(total));
+    }
+
+    public void syncFromQuote(String stockCode, long cur, long open, long high, long low, long vol, double chgRate, long total) {
+        redisTemplate.opsForHash().putAll(INFO_KEY_PREFIX + stockCode, Map.of(
+                "cur", String.valueOf(cur),
+                "open", String.valueOf(open),
+                "high", String.valueOf(high),
+                "low", String.valueOf(low),
+                "vol", String.valueOf(vol),
+                "chgRate", String.valueOf(chgRate),
+                "total", String.valueOf(total)
+        ));
+    }
+
     public void update(LsWsStockResponse.Body body) {
         redisTemplate.opsForHash().putAll(INFO_KEY_PREFIX + body.shcode(), Map.of(
                 "cur", body.price() == null ? "0" : body.price().trim(),

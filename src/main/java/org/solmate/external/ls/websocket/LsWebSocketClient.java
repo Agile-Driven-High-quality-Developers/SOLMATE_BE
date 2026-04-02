@@ -120,13 +120,19 @@ public class LsWebSocketClient extends TextWebSocketHandler {
     // 재연결 후 기존 구독 종목 전체 재구독
     private void resubscribeAll() {
         if (subscribedCodes.isEmpty()) return;
-        log.debug("LS WebSocket 재구독 시작: {}개 종목", subscribedCodes.size());
+        log.info("LS WebSocket 재구독 시작: {}개 종목", subscribedCodes.size());
         String token = lsTokenService.getToken();
-        subscribedCodes.forEach(code -> {
+        for (String code : subscribedCodes) {
             sendMessage(LsWsRequest.subscribe(token, code));
             sendMessage(LsWsRequest.subscribeOrderBook(token, code));
-        });
-        log.debug("LS WebSocket 재구독 완료: {}개 종목 - {}", subscribedCodes.size(), subscribedCodes);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        log.info("LS WebSocket 재구독 완료: {}개 종목", subscribedCodes.size());
     }
 
     // LS WebSocket에 종목 실시간 체결 구독 요청
@@ -190,8 +196,15 @@ public class LsWebSocketClient extends TextWebSocketHandler {
                 if (response.body() == null) return;
                 String stockCode = response.body().shcode();
                 stockInfoService.update(response.body());
+
+                // Redis에서 최신 시가총액 정보 가져오기
+                Map<Object, Object> info = stockInfoService.getStockInfo(stockCode);
+                String totalStr = (String) info.get("total");
+                long total = (totalStr != null && !totalStr.isBlank()) ? Long.parseLong(totalStr) : 0L;
+
                 messagingTemplate.convertAndSend("/topic/stocks/" + stockCode + "/quote",
-                        StockRealtimeResponse.from(response.body()));
+                        StockRealtimeResponse.from(response.body(), total));
+                
                 candleAccumulatorService.accumulate(response.body());
                 orderMatchingService.match(stockCode);
                 broadcastCandle(stockCode, "candle:1min:",  "/topic/stocks/" + stockCode + "/candle/1min");

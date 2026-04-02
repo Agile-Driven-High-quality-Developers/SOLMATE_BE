@@ -64,18 +64,16 @@ public class HoldingsService {
             .toList();
     }
 
-    // 특정 종목의 보유현황 조회 - PENDING 매도 주문까지 반영해 실제 보유수량을 계산 후 현재가 기준 평가손익 반환
+    // 특정 종목의 보유현황 조회 - PENDING 매도 주문 수량을 제외한 매도 가능 수량 계산 후 현재가 기준 평가손익 반환
     @Transactional(readOnly = true)
     public StockHoldingResponse getStockHolding(Long userId, String stockCode) {
-        // Holdings 조회 (없으면 수량/평균단가 0)
-        // Holdings.quantity는 매도 주문 접수 시 선차감되어 있으므로 PENDING SELL 수량을 다시 더해야 함
         Holdings holdings = holdingsRepository.findByUserIdAndTickerCode(userId, stockCode)
                 .orElse(null);
 
         BigDecimal holdingsQuantity = holdings != null ? holdings.getQuantity() : BigDecimal.ZERO;
         BigDecimal avgPrice = holdings != null ? holdings.getAvgPrice() : BigDecimal.ZERO;
 
-        // PENDING SELL 수량 합산
+        // PENDING SELL 수량 조회 (가용 매도 수량 계산용)
         List<TradeHistory> pendingSells = tradeHistoryRepository
                 .findPendingByUserIdAndTickerCodeAndTradeType(userId, stockCode, TradeType.SELL);
         BigDecimal pendingSellQuantity = pendingSells.stream()

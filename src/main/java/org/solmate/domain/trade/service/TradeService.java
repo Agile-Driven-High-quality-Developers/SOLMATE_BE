@@ -129,8 +129,14 @@ public class TradeService {
         Holdings holdings = holdingsRepository.findByUserAndTickerCodeWithLock(user, request.ticker())
             .orElseThrow(() -> new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS));
 
-        // 보유 수량 검증
-        if (holdings.getQuantity().compareTo(request.quantity()) < 0) {
+        // 가용 수량 검증 (PENDING SELL 수량 제외)
+        BigDecimal pendingSellQuantity = tradeHistoryRepository
+                .findPendingByUserIdAndTickerCodeAndTradeType(userId, request.ticker(), TradeType.SELL)
+                .stream()
+                .map(TradeHistory::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal availableQuantity = holdings.getQuantity().subtract(pendingSellQuantity);
+        if (availableQuantity.compareTo(request.quantity()) < 0) {
             throw new GeneralException(ErrorStatus.INSUFFICIENT_HOLDINGS);
         }
 
@@ -147,9 +153,6 @@ public class TradeService {
 
         // 호가 단위 보정
         price = adjustToTickSize(price);
-
-        // 수량 선차감
-        holdings.subtractQuantity(request.quantity());
 
         // TradeHistory 저장
         // avgPriceSnapshot: 매도 시점의 평균단가 스냅샷 저장 (이후 추가 매수 시 avgPrice가 바뀌어도 수익 계산 가능)

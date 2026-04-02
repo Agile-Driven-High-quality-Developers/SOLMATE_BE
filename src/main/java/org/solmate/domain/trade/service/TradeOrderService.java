@@ -6,11 +6,9 @@ import org.solmate.common.exception.GeneralException;
 import org.solmate.common.status.ErrorStatus;
 import org.solmate.domain.account.entity.Account;
 import org.solmate.domain.account.repository.AccountRepository;
-import org.solmate.domain.trade.entity.Holdings;
 import org.solmate.domain.trade.entity.TradeHistory;
 import org.solmate.domain.trade.enums.TradeStatus;
 import org.solmate.domain.trade.enums.TradeType;
-import org.solmate.domain.trade.repository.HoldingsRepository;
 import org.solmate.domain.trade.repository.TradeDiaryRepository;
 import org.solmate.domain.trade.repository.TradeHistoryRepository;
 import org.solmate.domain.user.entity.User;
@@ -33,7 +31,6 @@ public class TradeOrderService {
     private final TradeHistoryRepository tradeHistoryRepository;
     private final TradeDiaryRepository tradeDiaryRepository;
     private final AccountRepository accountRepository;
-    private final HoldingsRepository holdingsRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -63,12 +60,6 @@ public class TradeOrderService {
             Account account = accountRepository.findByUserWithLock(user)
                     .orElseThrow(() -> new GeneralException(ErrorStatus.ACCOUNT_NOT_FOUND));
             account.addCash(tradeHistory.getPrice().multiply(tradeHistory.getQuantity()));
-        } else {
-            // 매도 취소 → 주문 접수 시 선차감했던 주식 수량 복원
-            // DB 비관적 락으로 Holdings row를 잠금 → 동시 복원 시 수량 덮어쓰기 방지
-            Holdings holdings = holdingsRepository.findByUserAndTickerCodeWithLock(user, tradeHistory.getStock().getTickerCode())
-                    .orElseThrow(() -> new GeneralException(ErrorStatus.NOT_FOUND));
-            holdings.addQuantity(tradeHistory.getQuantity());
         }
 
         // 주문 상태를 CANCELLED로 변경

@@ -17,11 +17,11 @@ public record StockHoldingResponse(
             BigDecimal avgPrice,
             BigDecimal currentPrice) {
 
-        // 보유수량 = Holdings 수량(매도 접수 시 차감됨) + PENDING SELL 수량
-        BigDecimal holdingQuantity = holdingsQuantity.add(pendingSellQuantity);
+        // 보유수량 = Holdings 수량 그대로
+        BigDecimal holdingQuantity = holdingsQuantity;
 
-        // 즉시 매도 가능 수량 = Holdings 수량 (PENDING SELL 제외)
-        BigDecimal availableSellQuantity = holdingsQuantity;
+        // 즉시 매도 가능 수량 = 보유수량 - PENDING SELL 수량
+        BigDecimal availableSellQuantity = holdingsQuantity.subtract(pendingSellQuantity);
 
         if (holdingQuantity.compareTo(BigDecimal.ZERO) == 0 || avgPrice.compareTo(BigDecimal.ZERO) == 0) {
             return new StockHoldingResponse(

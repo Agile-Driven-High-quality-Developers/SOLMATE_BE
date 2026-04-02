@@ -177,6 +177,12 @@ public class OrderMatchingService {
                         account.addCash(currentPrice.multiply(quantity));
                     }
 
+                    // Holdings 수량 차감
+                    Holdings holdings = holdingsRepository.findByUserAndTickerCodeWithLock(user, ticker).orElse(null);
+                    if (holdings != null) {
+                        holdings.subtractQuantity(quantity);
+                    }
+
                     // TradeHistory 체결 처리
                     tradeHistory.updateStatus(TradeStatus.FILLED);
                     tradeHistory.updateFilledPrice(currentPrice);
